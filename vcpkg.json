@@ -11,6 +11,7 @@
                 "json1"
             ]
         },
-        "sqlitecpp"
+      "sqlitecpp",
+      "spdlog"
     ]
 }
