@@ -1,10 +1,10 @@
 #pragma once
 #include <source_location>
+#include <span>
 #include <stdexcept>
 #include <string>
 #include <string_view>
 #include <vector>
-#include <span>
 
 namespace engine
 {
@@ -20,7 +20,10 @@ namespace engine
         /// Get the source of the error
         const std::source_location &get_source() const noexcept;
 
-      private:
+        /// Print a message to the log
+        virtual void log() const;
+
+      protected:
         std::string          m_message;
         std::source_location m_source_location;
     };
@@ -31,6 +34,9 @@ namespace engine
       public:
         GlfwException(std::string message, std::source_location source = std::source_location::current());
 
+        GlfwException(std::string message, int glfw_error_code, const char *glfw_error_msg,
+                      std::source_location source = std::source_location::current());
+
         ~GlfwException() = default;
 
         /// Get the GLFW error code
@@ -38,7 +44,9 @@ namespace engine
         /// Get the string description of the error code
         std::string_view get_error_info() const noexcept;
 
-      private:
+        void log() const override;
+
+      protected:
         int         m_error_code;
         const char *m_error_info;
     };
@@ -57,7 +65,9 @@ namespace engine
         /// Get the string representation of the result
         std::string_view get_error_string() const noexcept;
 
-      private:
+        void log() const override;
+
+      protected:
         uint32_t m_result;
     };
 
@@ -71,9 +81,11 @@ namespace engine
         ~VulkanExtensionsNotAvailable() = default;
 
         /// Get a span over the required extensions
-        std::span<const char * const> get_extensions() const noexcept;
+        std::span<const char *const> get_extensions() const noexcept;
 
-      private:
+        void log() const override;
+
+      protected:
         std::vector<const char *> m_unavailable_extensions;
     };
 
@@ -87,9 +99,11 @@ namespace engine
         ~VulkanLayersNotAvailable() = default;
 
         /// Get a span over the required layers
-        std::span<const char * const> get_layers() const noexcept;
+        std::span<const char *const> get_layers() const noexcept;
 
-      private:
+        void log() const override;
+
+      protected:
         std::vector<const char *> m_unavailable_layers;
     };
 } // namespace engine

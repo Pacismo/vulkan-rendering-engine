@@ -1,6 +1,7 @@
-#include "vk_result_to_string.hpp"
+#include "vk_result.hpp"
 
-std::string_view result_to_string(vk::Result result) {
+std::string_view result_to_string(vk::Result result)
+{
     switch (result) {
     case vk::Result::eSuccess:
         return "Success";
@@ -98,9 +99,13 @@ std::string_view result_to_string(vk::Result result) {
         return "Compression Exhausted";
     case vk::Result::eIncompatibleShaderBinaryEXT:
         return "Incompatible Shader Binary";
+
+    default:
+        return "Unknown Error Code";
     }
 }
 
-std::string_view result_to_string(uint32_t result_code) {
+std::string_view result_to_string(uint32_t result_code)
+{
     return result_to_string(vk::Result(result_code));
 }
