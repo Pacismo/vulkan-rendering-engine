@@ -1,17 +1,27 @@
 {
-    "$schema": "https://raw.githubusercontent.com/microsoft/vcpkg-tool/main/docs/vcpkg.schema.json",
-    "builtin-baseline": "f0c8848cde589649bca3ab3649668540403786ce",
-    "dependencies": [
-        "vulkan",
-        "glfw3",
-        {
-            "name": "sqlite3",
-            "default-features": true,
-            "features": [
-                "json1"
-            ]
-        },
-      "sqlitecpp",
-      "spdlog"
-    ]
+  "$schema": "https://raw.githubusercontent.com/microsoft/vcpkg-tool/main/docs/vcpkg.schema.json",
+  "builtin-baseline": "f0c8848cde589649bca3ab3649668540403786ce",
+  "dependencies": [
+    "vulkan",
+    "glfw3",
+    "glm",
+    {
+      "name": "imgui",
+      "default-features": false,
+      "features": [
+        "vulkan-binding",
+        "glfw-binding"
+      ]
+    },
+    {
+      "name": "sqlite3",
+      "default-features": true,
+      "features": [
+        "json1"
+      ]
+    },
+    "sqlitecpp",
+    "spdlog",
+    "fmt"
+  ]
 }

@@ -9,6 +9,15 @@ set(GRT_ENGINE_NAME "Game Runtime")
 
 add_compile_definitions(DEBUG_ASSERTIONS=${DEBUG})
 
+find_package(Vulkan REQUIRED)
+find_package(glfw3 CONFIG REQUIRED)
+find_package(glm CONFIG REQUIRED)
+find_package(imgui CONFIG REQUIRED)
+find_package(fmt CONFIG REQUIRED)
+find_package(spdlog CONFIG REQUIRED)
+find_package(unofficial-sqlite3 CONFIG REQUIRED)
+find_package(SQLiteCpp CONFIG REQUIRED)
+
 add_subdirectory(render)
 add_subdirectory(runtime)
 
