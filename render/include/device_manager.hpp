@@ -12,6 +12,9 @@ namespace engine
         vk::Queue handle;
     };
 
+    /// Manages the data pertaining to the rendering device.
+    /// 
+    /// May be shared.
     class RenderDeviceManager final
     {
         friend class Window;

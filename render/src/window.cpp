@@ -85,13 +85,13 @@ namespace engine
         if (!glfwInit())
             throw GlfwException("Failed to initialize GLFW");
 
-        m_instance_manager = VulkanInstanceManager::new_shared(application_name, application_version);
+        auto instance_manager = VulkanInstanceManager::new_shared(application_name, application_version);
 
-        auto devices = get_properties(m_instance_manager->get_supported_rendering_devices());
-        list_devices(m_instance_manager->m_logger, devices);
+        auto devices = get_properties(instance_manager->get_supported_rendering_devices());
+        list_devices(instance_manager->m_logger, devices);
         auto device = select_physical_device(devices);
 
-        m_device_manager = RenderDeviceManager::new_shared(m_instance_manager, device);
+        auto device_manager = RenderDeviceManager::new_shared(instance_manager, device);
 
         glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
         mp_window = glfwCreateWindow(width, height, title.data(), nullptr, nullptr);
@@ -99,13 +99,11 @@ namespace engine
             throw GlfwException("Failed to create a new window");
         m_logger->info("Created window");
 
-        m_render_manager = RenderManager::new_unique(m_device_manager, mp_window);
+        m_render_manager = RenderManager::new_unique(device_manager, mp_window);
     }
 
     Window::Window(string_view title, int32_t width, int32_t height, const Window &other)
         : m_logger(other.m_logger)
-        , m_instance_manager(other.m_instance_manager)
-        , m_device_manager(other.m_device_manager)
     {
         glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
         mp_window = glfwCreateWindow(width, height, title.data(), nullptr, nullptr);
@@ -113,7 +111,7 @@ namespace engine
             throw GlfwException("Failed to create a new window");
         m_logger->info("Created window");
 
-        m_render_manager = RenderManager::new_unique(m_device_manager, mp_window);
+        m_render_manager = RenderManager::new_unique(other.m_render_manager->m_device_manager, mp_window);
     }
 
     void Window::show()
@@ -150,16 +148,12 @@ namespace engine
 
     Window::Window(Window &&other) noexcept
         : m_logger(move(m_logger))
-        , m_instance_manager(move(m_instance_manager))
-        , m_device_manager(move(m_device_manager))
         , m_render_manager(move(m_render_manager))
 
     { }
     Window &Window::operator=(Window &&other) noexcept
     {
         swap(m_logger, other.m_logger);
-        swap(m_instance_manager, other.m_instance_manager);
-        swap(m_device_manager, other.m_device_manager);
         swap(m_render_manager, other.m_render_manager);
 
         return *this;

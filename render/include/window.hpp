@@ -10,13 +10,11 @@ namespace engine
 {
     class Window
     {
-        using SharedDeviceManager   = std::shared_ptr<class RenderDeviceManager>;
-        using SharedInstanceManager = std::shared_ptr<class VulkanInstanceManager>;
         using UniqueRenderManager   = std::unique_ptr<class RenderManager>;
 
       public:
         /// Create a new window, creating new instance and device configurations.
-        Window(std::string_view title, int32_t width, int32_t height, std::string_view application_name = "",
+        Window(std::string_view title, int32_t width, int32_t height, std::string_view application_name = "app_runtime",
                Version application_version = Version {.major = 0, .minor = 1, .patch = 0, .variant = 0});
         /// Create a new window, deriving the instance and device configurations from an existing window.
         Window(std::string_view title, int32_t width, int32_t height, const Window &other);
@@ -44,8 +42,6 @@ namespace engine
 
       private:
         std::shared_ptr<spdlog::logger> m_logger;
-        SharedInstanceManager           m_instance_manager = {};
-        SharedDeviceManager             m_device_manager   = {};
         UniqueRenderManager             m_render_manager   = {};
     };
 } // namespace engine

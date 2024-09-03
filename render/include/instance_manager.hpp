@@ -12,6 +12,9 @@
 
 namespace engine
 {
+    /// Manages the data pertaining to a Vulkan instance.
+    ///
+    /// May be shared.
     class VulkanInstanceManager final
     {
         friend class RenderDeviceManager;
