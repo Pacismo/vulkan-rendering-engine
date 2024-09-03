@@ -5,111 +5,114 @@
 #include <sstream>
 #include <vulkan/vulkan.hpp>
 
-using namespace engine;
-
-Exception::Exception(std::string message, std::source_location source)
-    : m_message(std::move(message))
-    , m_source_location(source)
-    , std::runtime_error(message.data())
-{ }
-
-const std::source_location &Exception::get_source() const noexcept
+namespace engine
 {
-    return m_source_location;
-}
 
-void engine::Exception::log() const
-{
-    spdlog::error("{}", m_message);
-}
+    Exception::Exception(std::string message, std::source_location source)
+        : m_message(std::move(message))
+        , m_source_location(source)
+        , std::runtime_error(message.data())
+    { }
 
-GlfwException::GlfwException(std::string message, std::source_location source)
-    : Exception(message, source)
-    , m_error_code(glfwGetError(&m_error_info))
-{ }
+    const std::source_location &Exception::get_source() const noexcept
+    {
+        return m_source_location;
+    }
 
-GlfwException::GlfwException(std::string message, int glfw_error_code, const char *glfw_error_msg,
-                             std::source_location source)
+    void Exception::log() const
+    {
+        spdlog::error("{}", m_message);
+    }
 
-    : Exception(std::move(message), std::move(source))
-    , m_error_code(glfw_error_code)
-    , m_error_info(glfw_error_msg)
-{ }
+    GlfwException::GlfwException(std::string message, std::source_location source)
+        : Exception(message, source)
+        , m_error_code(glfwGetError(&m_error_info))
+    { }
 
-int GlfwException::get_error_code() const noexcept
-{
-    return m_error_code;
-}
+    GlfwException::GlfwException(std::string message, int glfw_error_code, const char *glfw_error_msg,
+                                 std::source_location source)
 
-std::string_view GlfwException::get_error_info() const noexcept
-{
-    return m_error_info;
-}
+        : Exception(std::move(message), std::move(source))
+        , m_error_code(glfw_error_code)
+        , m_error_info(glfw_error_msg)
+    { }
 
-void engine::GlfwException::log() const
-{
-    spdlog::error("GLFW Exception ({}): {}\n{}", m_error_code, m_message, m_error_info);
-}
+    int GlfwException::get_error_code() const noexcept
+    {
+        return m_error_code;
+    }
 
-VulkanException::VulkanException(uint32_t result, std::string message, std::source_location source)
-    : Exception(std::move(message), std::move(source))
-    , m_result(result)
-{ }
+    std::string_view GlfwException::get_error_info() const noexcept
+    {
+        return m_error_info;
+    }
 
-uint32_t VulkanException::get_result() const noexcept
-{
-    return m_result;
-}
+    void GlfwException::log() const
+    {
+        spdlog::error("GLFW Exception ({}): {}\n{}", m_error_code, m_message, m_error_info);
+    }
 
-std::string_view VulkanException::get_error_string() const noexcept
-{
-    return result_to_string(m_result);
-}
+    VulkanException::VulkanException(uint32_t result, std::string message, std::source_location source)
+        : Exception(std::move(message), std::move(source))
+        , m_result(result)
+    { }
 
-void engine::VulkanException::log() const
-{
-    spdlog::error("Vulkan Exception ([{}] {}): {}", m_result, get_error_string(), m_message);
-}
+    uint32_t VulkanException::get_result() const noexcept
+    {
+        return m_result;
+    }
 
-VulkanExtensionsNotAvailable::VulkanExtensionsNotAvailable(std::string               message,
-                                                           std::vector<const char *> unavailable_extensions,
-                                                           std::source_location      source)
-    : VulkanException((uint32_t)vk::Result::eErrorExtensionNotPresent, std::move(message), std::move(source))
-    , m_unavailable_extensions(std::move(unavailable_extensions))
-{ }
+    std::string_view VulkanException::get_error_string() const noexcept
+    {
+        return result_to_string(m_result);
+    }
 
-std::span<const char *const> VulkanExtensionsNotAvailable::get_extensions() const noexcept
-{
-    return m_unavailable_extensions;
-}
+    void engine::VulkanException::log() const
+    {
+        spdlog::error("Vulkan Exception ([{}] {}): {}", m_result, get_error_string(), m_message);
+    }
 
-void engine::VulkanExtensionsNotAvailable::log() const
-{
-    std::stringstream list = {};
+    VulkanExtensionsNotAvailable::VulkanExtensionsNotAvailable(std::string               message,
+                                                               std::vector<const char *> unavailable_extensions,
+                                                               std::source_location      source)
+        : VulkanException((uint32_t)vk::Result::eErrorExtensionNotPresent, std::move(message), std::move(source))
+        , m_unavailable_extensions(std::move(unavailable_extensions))
+    { }
 
-    for (auto extension : m_unavailable_extensions)
-        list << fmt::format("\n\t - {}", extension);
+    std::span<const char *const> VulkanExtensionsNotAvailable::get_extensions() const noexcept
+    {
+        return m_unavailable_extensions;
+    }
 
-    spdlog::error("Vulkan Extensions Unavailable: {}{}", m_message, list.str());
-}
+    void VulkanExtensionsNotAvailable::log() const
+    {
+        std::stringstream list = {};
 
-VulkanLayersNotAvailable::VulkanLayersNotAvailable(std::string message, std::vector<const char *> unavailable_layers,
-                                                   std::source_location source)
-    : VulkanException((uint32_t)vk::Result::eErrorLayerNotPresent, std::move(message), std::move(source))
-    , m_unavailable_layers(std::move(unavailable_layers))
-{ }
+        for (auto extension : m_unavailable_extensions)
+            list << fmt::format("\n\t- {}", extension);
 
-std::span<const char *const> VulkanLayersNotAvailable::get_layers() const noexcept
-{
-    return m_unavailable_layers;
-}
+        spdlog::error("Vulkan Extensions Unavailable: {}{}", m_message, list.str());
+    }
 
-void engine::VulkanLayersNotAvailable::log() const
-{
-    std::stringstream list = {};
+    VulkanLayersNotAvailable::VulkanLayersNotAvailable(std::string               message,
+                                                       std::vector<const char *> unavailable_layers,
+                                                       std::source_location      source)
+        : VulkanException((uint32_t)vk::Result::eErrorLayerNotPresent, std::move(message), std::move(source))
+        , m_unavailable_layers(std::move(unavailable_layers))
+    { }
 
-    for (auto layer : m_unavailable_layers)
-        list << fmt::format("\n\t - {}", layer);
+    std::span<const char *const> VulkanLayersNotAvailable::get_layers() const noexcept
+    {
+        return m_unavailable_layers;
+    }
 
-    spdlog::error("Vulkan Layers Unavailable: {}{}", m_message, list.str());
-}
+    void VulkanLayersNotAvailable::log() const
+    {
+        std::stringstream list = {};
+
+        for (auto layer : m_unavailable_layers)
+            list << fmt::format("\n\t- {}", layer);
+
+        spdlog::error("Vulkan Layers Unavailable: {}{}", m_message, list.str());
+    }
+} // namespace engine

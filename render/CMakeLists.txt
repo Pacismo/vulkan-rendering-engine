@@ -3,7 +3,10 @@ add_library(render
     "src/exceptions.cpp"        "include/exceptions.hpp"
     "include/version.hpp"
     "src/vk_result.cpp"         "src/vk_result.hpp"
-    "src/device_manager.cpp"    "include/device_manager.hpp")
+    "src/device_manager.cpp"    "include/device_manager.hpp"
+    "src/window.cpp"            "include/window.hpp" 
+    "src/logger.cpp"            "src/logger.hpp" 
+    "src/render_manager.cpp"    "include/render_manager.hpp")
 
 target_include_directories(render PUBLIC "include")
 target_link_libraries(render PRIVATE Vulkan::Vulkan PUBLIC glfw spdlog::spdlog fmt::fmt)
