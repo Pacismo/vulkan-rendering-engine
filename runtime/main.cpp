@@ -4,9 +4,16 @@
 #include <memory>
 #include <span>
 #include <spdlog/sinks/stdout_color_sinks.h>
+#include <vertex.hpp>
 #include <window.hpp>
 
-using std::shared_ptr, std::initializer_list, engine::Window, std::string_view;
+using std::shared_ptr, std::initializer_list, engine::Window, std::string_view, std::array, engine::primitives::Vertex;
+
+const array<Vertex, 3> VERTICES = {
+    Vertex {.position = {0.0, -0.5}, .color = {1.0, 0.0, 0.0}},
+    Vertex { .position = {0.5, 0.5}, .color = {0.0, 1.0, 0.0}},
+    Vertex {.position = {-0.5, 0.5}, .color = {0.0, 0.0, 1.0}},
+};
 
 class ExampleWindow : public Window
 {
