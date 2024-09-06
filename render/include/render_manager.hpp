@@ -92,8 +92,8 @@ namespace engine
         RenderManager(const RenderManager &other, GLFWwindow *window);
         ~RenderManager();
 
-        /// Recreate the pipeline
-        void recreate_pipeline();
+        /// Recreate the swapchain
+        bool recreate_swapchain();
 
         /// Make a new unique pointer to a RenderManager
         static Unique new_unique(std::string_view application_name, Version application_version, GLFWwindow *window);
@@ -121,7 +121,8 @@ namespace engine
         SharedInstanceManager           m_instance_manager = {};
         SharedDeviceManager             m_device_manager   = {};
 
-        static constexpr uint32_t      IN_FLIGHT         = 1;
+        static constexpr uint32_t      IN_FLIGHT         = 2;
+        uint32_t                       m_frame_index     = 0;
         GLFWwindow                    *m_window          = {};
         vk::Device                     m_device          = {};
         vk::Queue                      m_graphics_queue  = {};
@@ -136,9 +137,13 @@ namespace engine
         std::vector<vk::Framebuffer>   m_framebuffers    = {};
         vk::CommandPool                m_command_pool    = {};
         std::vector<vk::CommandBuffer> m_command_buffers = {};
-        GpuSync                        m_sync            = {};
+        std::vector<GpuSync>           m_sync            = {};
 
-        RenderConfiguration m_configuration = {};
+        RenderConfiguration m_configuration       = {};
+        bool                m_framebuffer_resized = false;
+        bool                m_valid_framebuffer   = {};
+
+        static void handle_framebuffer_resize(GLFWwindow *window, int width, int height);
 
         // Pipeline initialization functions
 
@@ -167,9 +172,7 @@ namespace engine
 
         void record_command_buffer(vk::CommandBuffer buffer, uint32_t image_index);
 
-        // Pipeline destruction function
-
-        /// Cleans the pipeline while keeping the swapchain and surface untouched
-        void clean_pipeline();
+        /// Destroy the swapchain, its images, and the framebuffers
+        void destroy_swapchain();
     };
 } // namespace engine
