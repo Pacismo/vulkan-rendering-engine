@@ -11,7 +11,7 @@ namespace engine
     class Window
     {
         friend class RenderManager;
-        using UniqueRenderManager = std::unique_ptr<class RenderManager>;
+        using SharedRenderManager = std::shared_ptr<class RenderManager>;
 
       public:
         /// Create a new window, creating new instance and device configurations.
@@ -43,6 +43,6 @@ namespace engine
 
       private:
         std::shared_ptr<spdlog::logger> m_logger;
-        UniqueRenderManager             m_render_manager = {};
+        SharedRenderManager             m_render_manager = {};
     };
 } // namespace engine
