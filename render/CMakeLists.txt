@@ -1,12 +1,13 @@
-set(RENDER_SOURCES 
-    "src/instance_manager.cpp"  "include/instance_manager.hpp"
-    "src/exceptions.cpp"        "include/exceptions.hpp"
+set(RENDER_SOURCES
+    "src/instance_manager.cpp"   "src/instance_manager.hpp"
+    "src/exceptions.cpp"         "include/exceptions.hpp"
     "include/version.hpp"
-    "src/vk_result.cpp"         "src/vk_result.hpp"
-    "src/device_manager.cpp"    "include/device_manager.hpp"
-    "src/window.cpp"            "include/window.hpp"
-    "src/logger.cpp"            "src/logger.hpp"
-    "src/render_manager.cpp"    "include/render_manager.hpp")
+    "src/vk_result.cpp"          "src/vk_result.hpp"
+    "src/device_manager.cpp"     "src/device_manager.hpp"
+    "src/window.cpp"             "include/window.hpp"
+    "src/logger.cpp"             "src/logger.hpp"
+    "src/render_manager.cpp"     "src/render_manager.hpp"
+    "include/vertex.hpp"         "src/vertex_description.hpp")
 
 add_library(render ${RENDER_SOURCES})
 
@@ -18,7 +19,7 @@ execute_process(COMMAND "${BINTOOL}" "${CMAKE_CURRENT_SOURCE_DIR}/vert.spv" "-l"
 configure_file("cfg/shaders.hpp" "cfg/shaders.hpp")
 
 target_include_directories(render PUBLIC "include" PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/cfg")
-target_link_libraries(render PRIVATE Vulkan::Vulkan PUBLIC glfw spdlog::spdlog fmt::fmt)
+target_link_libraries(render PRIVATE Vulkan::Vulkan PUBLIC glfw spdlog::spdlog fmt::fmt glm::glm)
 
 target_compile_definitions(render PRIVATE
     ENGINE_NAME="${GRT_ENGINE_NAME}"
