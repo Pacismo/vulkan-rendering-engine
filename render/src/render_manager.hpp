@@ -31,40 +31,6 @@ namespace engine
         uint32_t           image_layers = {};
     };
 
-    struct ColorBlending
-    {
-        using Attachment = vk::PipelineColorBlendAttachmentState;
-
-        bool                    logic_op_enabled = false;
-        vk::LogicOp             logic_op         = {};
-        std::vector<Attachment> attachments      = {};
-        std::array<float, 4>    constants        = {};
-    };
-
-    struct PipelineConfiguration
-    {
-        using VertexBindingDescriptions   = std::vector<vk::VertexInputBindingDescription>;
-        using VertexAttributeDescriptions = std::vector<vk::VertexInputAttributeDescription>;
-        using DynamicStates               = std::vector<vk::DynamicState>;
-        using RasterizerConfiguration     = vk::PipelineRasterizationStateCreateInfo;
-        using MultisampleConfiguration    = vk::PipelineMultisampleStateCreateInfo;
-
-        vk::ShaderModule            vertex_shader                 = {};
-        vk::ShaderModule            fragment_shader               = {};
-        VertexBindingDescriptions   vertex_binding_descriptions   = {};
-        VertexAttributeDescriptions vertex_attribute_descriptions = {};
-        DynamicStates               dynamic_states                = {};
-        RasterizerConfiguration     rasterizer                    = {};
-        MultisampleConfiguration    multisampling                 = {};
-        ColorBlending               color_blending                = {};
-    };
-
-    struct RenderConfiguration
-    {
-        SwapchainConfiguration swapchain = {};
-        PipelineConfiguration  pipeline  = {};
-    };
-
     struct GpuSync
     {
         vk::Semaphore image_available = {};
@@ -81,12 +47,13 @@ namespace engine
     class RenderManager final
     {
         friend class Window;
+        friend class GpuBufferWriter;
 
         using SharedInstanceManager = std::shared_ptr<class VulkanInstanceManager>;
         using SharedDeviceManager   = std::shared_ptr<class RenderDeviceManager>;
 
       public:
-        using Unique = std::unique_ptr<RenderManager>;
+        using Shared = std::shared_ptr<RenderManager>;
 
         RenderManager(std::string_view application_name, Version application_version, GLFWwindow *window);
         RenderManager(const RenderManager &other, GLFWwindow *window);
@@ -95,13 +62,13 @@ namespace engine
         /// Recreate the swapchain
         bool recreate_swapchain();
 
-        /// Make a new unique pointer to a RenderManager
-        static Unique new_unique(std::string_view application_name, Version application_version, GLFWwindow *window);
+        /// Make a new shared pointer to a RenderManager
+        static Shared new_shared(std::string_view application_name, Version application_version, GLFWwindow *window);
 
         /// Clone the instance/device managers to create a new RenderManager
         ///
         /// The device from `other` must be compatible with the surface created with the window
-        static Unique new_unique(const Unique &other, GLFWwindow *window);
+        static Shared new_shared(const Shared &other, GLFWwindow *window);
 
         /// Render a frame
         void render_frame();
@@ -138,27 +105,28 @@ namespace engine
         vk::CommandPool                m_command_pool    = {};
         std::vector<vk::CommandBuffer> m_command_buffers = {};
         std::vector<GpuSync>           m_sync            = {};
+        vk::ShaderModule               m_vertex_shader   = {};
+        vk::ShaderModule               m_fragment_shader = {};
 
-        RenderConfiguration m_configuration       = {};
-        bool                m_framebuffer_resized = false;
-        bool                m_valid_framebuffer   = {};
+        SwapchainConfiguration m_swapchain_config    = {};
+        bool                   m_framebuffer_resized = false;
+        bool                   m_valid_framebuffer   = {};
 
         static void handle_framebuffer_resize(GLFWwindow *window, int width, int height);
 
         // Pipeline initialization functions
 
-        /// Initialize the configuration of the pipeline
-        void initialize_pipeline_configuration();
-
         /// Get the images owned by the swapchain
         void get_images();
 
+        /// Create the pipeline
+        void create_pipeline();
         /// Create the render pass
         void create_render_pass();
         /// Create a new swapchain
         void create_swapchain();
-        /// Create the pipeline
-        void create_pipeline();
+        /// Load the shaders
+        void load_shaders();
         /// Create a rendering pipeline
         void create_render_pipeline();
         /// Create the framebuffers
