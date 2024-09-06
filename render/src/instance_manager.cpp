@@ -9,7 +9,7 @@
 #include <vector>
 #include <vulkan/vulkan.hpp>
 
-using std::vector, std::span, std::string_view, std::shared_ptr, std::make_shared, std::move;
+using std::vector, std::span, std::string_view;
 
 namespace engine
 {
@@ -259,8 +259,8 @@ namespace engine
                     supported_devices.push_back(device);
             }
 
-            m_available_devices           = move(available_devices);
-            m_supported_rendering_devices = move(supported_devices);
+            m_available_devices           = std::move(available_devices);
+            m_supported_rendering_devices = std::move(supported_devices);
         }
     }
 

@@ -8,7 +8,7 @@
 #include <set>
 #include <tuple>
 
-using std::tuple, std::move, std::forward, std::optional, std::set, std::vector, std::array, std::span;
+using std::tuple, std::optional, std::set, std::vector, std::array, std::span;
 
 static array<const char *, 1> REQUIRED_DEVICE_EXTENSIONS = {vk::KHRSwapchainExtensionName};
 
@@ -40,8 +40,6 @@ namespace engine
         return {graphics, present};
     }
 
-    static optional<uint32_t> get_transer_queue_index(vk::PhysicalDevice device) { }
-
     class RenderDeviceManager::Deleter
     {
       public:
@@ -50,7 +48,7 @@ namespace engine
 
     RenderDeviceManager::RenderDeviceManager(SharedInstanceManager instance_manager, vk::PhysicalDevice physical_device)
         : m_logger(instance_manager->m_logger)
-        , m_instance_manager(move(instance_manager))
+        , m_instance_manager(std::move(instance_manager))
         , m_dispatch(m_instance_manager->m_dispatch)
         , m_physical_device(physical_device)
     {
@@ -130,7 +128,7 @@ namespace engine
     {
         if (m_device)
             m_device.destroy();
-        m_logger->info("Destroyed device {:08X}", (size_t)(VkDevice)m_device);
+        m_logger->info("Destroyed device");
 
         m_graphics_queue  = {};
         m_present_queue   = {};
