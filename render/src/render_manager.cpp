@@ -1,12 +1,13 @@
 #include "render_manager.hpp"
+#include "device_manager.hpp"
 #include "exceptions.hpp"
+#include "instance_manager.hpp"
 #include "logger.hpp"
+#include "vertex_description.hpp"
 #include "window.hpp"
 #include <algorithm>
 #include <array>
-#include <device_manager.hpp>
 #include <fmt/format.h>
-#include <instance_manager.hpp>
 #include <limits>
 #include <span>
 #include <sstream>
@@ -90,12 +91,38 @@ static vk::PhysicalDevice select_physical_device(
     return selected_device;
 }
 
+struct ColorBlending
+{
+    using Attachment = vk::PipelineColorBlendAttachmentState;
+
+    bool                    logic_op_enabled = false;
+    vk::LogicOp             logic_op         = {};
+    std::vector<Attachment> attachments      = {};
+    std::array<float, 4>    constants        = {};
+};
+
+struct PipelineConfiguration
+{
+    using VertexBindingDescriptions   = std::vector<vk::VertexInputBindingDescription>;
+    using VertexAttributeDescriptions = std::vector<vk::VertexInputAttributeDescription>;
+    using DynamicStates               = std::vector<vk::DynamicState>;
+    using RasterizerConfiguration     = vk::PipelineRasterizationStateCreateInfo;
+    using MultisampleConfiguration    = vk::PipelineMultisampleStateCreateInfo;
+
+    vk::ShaderModule            vertex_shader                 = {};
+    vk::ShaderModule            fragment_shader               = {};
+    VertexBindingDescriptions   vertex_binding_descriptions   = {};
+    VertexAttributeDescriptions vertex_attribute_descriptions = {};
+    DynamicStates               dynamic_states                = {};
+    RasterizerConfiguration     rasterizer                    = {};
+    MultisampleConfiguration    multisampling                 = {};
+    ColorBlending               color_blending                = {};
+};
+
 struct PreparedPipelineConfiguration
 {
-    PreparedPipelineConfiguration(engine::PipelineConfiguration &pipeline_configuration,
-                                  vk::PipelineLayout             pipeline_layout)
-        : pipeline_layout(pipeline_layout)
-        , rasterizer(pipeline_configuration.rasterizer)
+    PreparedPipelineConfiguration(PipelineConfiguration &pipeline_configuration)
+        : rasterizer(pipeline_configuration.rasterizer)
         , multisampling(pipeline_configuration.multisampling)
     {
         dynamic_state = {
@@ -151,11 +178,10 @@ struct PreparedPipelineConfiguration
     vk::PipelineVertexInputStateCreateInfo    vertex_input;
     vk::PipelineInputAssemblyStateCreateInfo  input_assembly;
     vk::PipelineViewportStateCreateInfo       viewport_state;
-    vk::PipelineRasterizationStateCreateInfo &rasterizer;
-    vk::PipelineMultisampleStateCreateInfo   &multisampling;
+    vk::PipelineRasterizationStateCreateInfo  rasterizer;
+    vk::PipelineMultisampleStateCreateInfo    multisampling;
     vk::PipelineDepthStencilStateCreateInfo   depth_stencil;
     vk::PipelineColorBlendStateCreateInfo     color_blending;
-    vk::PipelineLayout                        pipeline_layout;
 };
 
 static vk::ShaderModule create_shader_module(vk::Device device, span<const uint32_t> spirv_code)
@@ -247,8 +273,6 @@ namespace engine
         m_graphics_queue = m_device_manager->m_graphics_queue.handle;
         m_present_queue  = m_device_manager->m_present_queue.handle;
 
-        initialize_pipeline_configuration();
-
         glfwSetFramebufferSizeCallback(m_window, handle_framebuffer_resize);
 
         create_pipeline();
@@ -268,8 +292,6 @@ namespace engine
 
         if (!SwapchainSupportDetails::supported(m_device_manager->m_physical_device, m_surface))
             throw Exception("The device passed does not support this surface");
-
-        initialize_pipeline_configuration();
 
         glfwSetFramebufferSizeCallback(m_window, handle_framebuffer_resize);
 
@@ -295,10 +317,10 @@ namespace engine
         if (m_render_pass)
             m_device.destroyRenderPass(m_render_pass);
 
-        if (vk::ShaderModule module = m_configuration.pipeline.vertex_shader)
-            m_device.destroyShaderModule(module);
-        if (vk::ShaderModule module = m_configuration.pipeline.fragment_shader)
-            m_device.destroyShaderModule(module);
+        if (m_vertex_shader)
+            m_device.destroyShaderModule(m_vertex_shader);
+        if (m_fragment_shader)
+            m_device.destroyShaderModule(m_fragment_shader);
 
         if (m_swapchain)
             m_device.destroySwapchainKHR(m_swapchain);
@@ -324,15 +346,15 @@ namespace engine
         m_instance_manager = nullptr;
     }
 
-    RenderManager::Unique RenderManager::new_unique(string_view application_name, Version application_version,
+    RenderManager::Shared RenderManager::new_shared(string_view application_name, Version application_version,
                                                     GLFWwindow *window)
     {
-        return Unique(new RenderManager(application_name, application_version, window));
+        return Shared(new RenderManager(application_name, application_version, window));
     }
 
-    RenderManager::Unique RenderManager::new_unique(const Unique &other, GLFWwindow *window)
+    RenderManager::Shared RenderManager::new_shared(const Shared &other, GLFWwindow *window)
     {
-        return Unique(new RenderManager(*other, window));
+        return Shared(new RenderManager(*other, window));
     }
 
     void RenderManager::render_frame()
@@ -424,7 +446,9 @@ namespace engine
         , m_command_pool(move(other.m_command_pool))
         , m_command_buffers(move(other.m_command_buffers))
         , m_sync(move(other.m_sync))
-        , m_configuration(other.m_configuration)
+        , m_swapchain_config(move(other.m_swapchain_config))
+        , m_vertex_shader(move(other.m_vertex_shader))
+        , m_fragment_shader(move(other.m_fragment_shader))
     { }
 
     RenderManager &RenderManager::operator=(RenderManager &&other) noexcept
@@ -448,7 +472,9 @@ namespace engine
         swap(m_command_buffers, other.m_command_buffers);
         swap(m_sync, other.m_sync);
 
-        swap(m_configuration, other.m_configuration);
+        swap(m_swapchain_config, other.m_swapchain_config);
+        swap(m_vertex_shader, other.m_vertex_shader);
+        swap(m_fragment_shader, other.m_fragment_shader);
 
         return *this;
     }
@@ -460,61 +486,10 @@ namespace engine
         w->m_render_manager->m_framebuffer_resized = true;
     }
 
-    void RenderManager::initialize_pipeline_configuration()
-    {
-        m_configuration.pipeline.vertex_shader   = create_shader_module(m_device, vertex_shader);
-        m_configuration.pipeline.fragment_shader = create_shader_module(m_device, fragment_shader);
-        m_logger->info("Loaded default vertex and fragment shaders");
-
-        m_configuration.pipeline.dynamic_states = {
-            vk::DynamicState::eViewport,
-            vk::DynamicState::eScissor,
-        };
-
-        m_configuration.pipeline.rasterizer = {
-            .depthClampEnable        = false,
-            .rasterizerDiscardEnable = false,
-            .polygonMode             = vk::PolygonMode::eFill,
-            .cullMode                = vk::CullModeFlagBits::eBack,
-            .frontFace               = vk::FrontFace::eClockwise,
-            .depthBiasEnable         = false,
-            .depthBiasConstantFactor = 0.0,
-            .depthBiasClamp          = 0.0,
-            .depthBiasSlopeFactor    = 0.0,
-            .lineWidth               = 1.0f,
-        };
-
-        m_configuration.pipeline.multisampling = {
-            .rasterizationSamples  = vk::SampleCountFlagBits::e1,
-            .sampleShadingEnable   = false,
-            .minSampleShading      = 1.0,
-            .pSampleMask           = nullptr,
-            .alphaToCoverageEnable = false,
-            .alphaToOneEnable      = false,
-        };
-
-        using ColorComponent                    = vk::ColorComponentFlagBits;
-        m_configuration.pipeline.color_blending = {
-            .logic_op_enabled = false,
-            .logic_op         = vk::LogicOp::eCopy,
-            .attachments      = {{
-                     .blendEnable         = false,
-                     .srcColorBlendFactor = vk::BlendFactor::eOne,
-                     .dstColorBlendFactor = vk::BlendFactor::eOne,
-                     .colorBlendOp        = vk::BlendOp::eAdd,
-                     .srcAlphaBlendFactor = vk::BlendFactor::eOne,
-                     .dstAlphaBlendFactor = vk::BlendFactor::eZero,
-                     .alphaBlendOp        = vk::BlendOp::eAdd,
-                     .colorWriteMask = ColorComponent::eR | ColorComponent::eG | ColorComponent::eB | ColorComponent::eA,
-            }},
-            .constants        = {0.0, 0.0, 0.0, 0.0},
-        };
-    }
-
     void RenderManager::create_render_pass()
     {
         vk::AttachmentDescription color_attachment = {
-            .format         = m_configuration.swapchain.format,
+            .format         = m_swapchain_config.format,
             .samples        = vk::SampleCountFlagBits::e1,
             .loadOp         = vk::AttachmentLoadOp::eClear,
             .storeOp        = vk::AttachmentStoreOp::eStore,
@@ -562,14 +537,14 @@ namespace engine
         create_swapchain();
         get_images();
         create_render_pass();
+        load_shaders();
         create_render_pipeline();
         create_framebuffers();
         create_command_pool();
         allocate_command_buffers();
         create_sync_primitives();
 
-        m_valid_framebuffer =
-            m_configuration.swapchain.extent.width != 0 && m_configuration.swapchain.extent.height != 0;
+        m_valid_framebuffer = m_swapchain_config.extent.width != 0 && m_swapchain_config.extent.height != 0;
     }
 
     void RenderManager::destroy_swapchain()
@@ -612,18 +587,18 @@ namespace engine
     {
         auto swapchain_support_details = SwapchainSupportDetails::query(m_device_manager->m_physical_device, m_surface);
 
-        auto format                            = select_format(swapchain_support_details.formats);
-        m_configuration.swapchain.format       = format.format;
-        m_configuration.swapchain.color_space  = format.colorSpace;
-        m_configuration.swapchain.present_mode = select_present_mode(swapchain_support_details.modes);
-        m_configuration.swapchain.extent       = select_extent(swapchain_support_details.capabilities, m_window);
+        auto format                     = select_format(swapchain_support_details.formats);
+        m_swapchain_config.format       = format.format;
+        m_swapchain_config.color_space  = format.colorSpace;
+        m_swapchain_config.present_mode = select_present_mode(swapchain_support_details.modes);
+        m_swapchain_config.extent       = select_extent(swapchain_support_details.capabilities, m_window);
 
         uint32_t image_count = swapchain_support_details.capabilities.minImageCount + 1;
         if (auto max = swapchain_support_details.capabilities.maxImageCount)
             image_count = min(image_count, max);
-        m_configuration.swapchain.image_count = image_count;
+        m_swapchain_config.image_count = image_count;
 
-        m_configuration.swapchain.image_layers = 1;
+        m_swapchain_config.image_layers = 1;
 
         uint32_t queue_families[2] = {m_device_manager->m_graphics_queue.index,
                                       m_device_manager->m_present_queue.index};
@@ -632,24 +607,30 @@ namespace engine
 
         vk::SwapchainCreateInfoKHR swapchain_create_info = {
             .surface               = m_surface,
-            .minImageCount         = m_configuration.swapchain.image_count,
-            .imageFormat           = m_configuration.swapchain.format,
-            .imageColorSpace       = m_configuration.swapchain.color_space,
-            .imageExtent           = m_configuration.swapchain.extent,
-            .imageArrayLayers      = m_configuration.swapchain.image_layers,
+            .minImageCount         = m_swapchain_config.image_count,
+            .imageFormat           = m_swapchain_config.format,
+            .imageColorSpace       = m_swapchain_config.color_space,
+            .imageExtent           = m_swapchain_config.extent,
+            .imageArrayLayers      = m_swapchain_config.image_layers,
             .imageUsage            = vk::ImageUsageFlagBits::eColorAttachment,
             .imageSharingMode      = same_queues ? vk::SharingMode::eExclusive : vk::SharingMode::eConcurrent,
             .queueFamilyIndexCount = same_queues ? 0u : 2u,
             .pQueueFamilyIndices   = same_queues ? nullptr : queue_families,
             .preTransform          = swapchain_support_details.capabilities.currentTransform,
             .compositeAlpha        = vk::CompositeAlphaFlagBitsKHR::eOpaque,
-            .presentMode           = m_configuration.swapchain.present_mode,
+            .presentMode           = m_swapchain_config.present_mode,
             .clipped               = true,
             .oldSwapchain          = m_swapchain, // Should be NULL for the first call
         };
 
         m_swapchain = m_device.createSwapchainKHR(swapchain_create_info);
         m_logger->info("Created swapchain");
+    }
+
+    void RenderManager::load_shaders()
+    {
+        m_vertex_shader   = create_shader_module(m_device, vertex_shader);
+        m_fragment_shader = create_shader_module(m_device, fragment_shader)
     }
 
     static vector<vk::ImageView> create_image_views(vk::Device device, span<vk::Image> images, vk::Format format,
@@ -684,8 +665,8 @@ namespace engine
     {
         m_images = m_device.getSwapchainImagesKHR(m_swapchain);
 
-        m_image_views = create_image_views(m_device, m_images, m_configuration.swapchain.format,
-                                           m_configuration.swapchain.image_layers);
+        m_image_views =
+            create_image_views(m_device, m_images, m_swapchain_config.format, m_swapchain_config.image_layers);
 
         m_logger->info("Created {} image views", m_image_views.size());
     }
@@ -702,7 +683,60 @@ namespace engine
         m_pipeline_layout = m_device.createPipelineLayout(pipeline_layout_create_info);
         m_logger->info("Created render pipeline layout");
 
-        auto config = PreparedPipelineConfiguration(m_configuration.pipeline, m_pipeline_layout);
+        PipelineConfiguration pipeline_config = {};
+
+        pipeline_config.vertex_shader   = m_vertex_shader;
+        pipeline_config.fragment_shader = m_fragment_shader;
+        m_logger->info("Loaded default vertex and fragment shaders");
+
+        pipeline_config.dynamic_states = {
+            vk::DynamicState::eViewport,
+            vk::DynamicState::eScissor,
+        };
+
+        pipeline_config.rasterizer = {
+            .depthClampEnable        = false,
+            .rasterizerDiscardEnable = false,
+            .polygonMode             = vk::PolygonMode::eFill,
+            .cullMode                = vk::CullModeFlagBits::eBack,
+            .frontFace               = vk::FrontFace::eClockwise,
+            .depthBiasEnable         = false,
+            .depthBiasConstantFactor = 0.0,
+            .depthBiasClamp          = 0.0,
+            .depthBiasSlopeFactor    = 0.0,
+            .lineWidth               = 1.0f,
+        };
+
+        pipeline_config.multisampling = {
+            .rasterizationSamples  = vk::SampleCountFlagBits::e1,
+            .sampleShadingEnable   = false,
+            .minSampleShading      = 1.0,
+            .pSampleMask           = nullptr,
+            .alphaToCoverageEnable = false,
+            .alphaToOneEnable      = false,
+        };
+
+        using ColorComponent           = vk::ColorComponentFlagBits;
+        pipeline_config.color_blending = {
+            .logic_op_enabled = false,
+            .logic_op         = vk::LogicOp::eCopy,
+            .attachments      = {{
+                     .blendEnable         = false,
+                     .srcColorBlendFactor = vk::BlendFactor::eOne,
+                     .dstColorBlendFactor = vk::BlendFactor::eOne,
+                     .colorBlendOp        = vk::BlendOp::eAdd,
+                     .srcAlphaBlendFactor = vk::BlendFactor::eOne,
+                     .dstAlphaBlendFactor = vk::BlendFactor::eZero,
+                     .alphaBlendOp        = vk::BlendOp::eAdd,
+                     .colorWriteMask = ColorComponent::eR | ColorComponent::eG | ColorComponent::eB | ColorComponent::eA,
+            }},
+            .constants        = {0.0, 0.0, 0.0, 0.0},
+        };
+
+        pipeline_config.vertex_binding_descriptions   = {primitives::VERTEX_BINDING_DESCRIPTION};
+        pipeline_config.vertex_attribute_descriptions = {primitives::VERTEX_INPUT_DESCRIPTION};
+
+        auto config = PreparedPipelineConfiguration(pipeline_config);
 
         vk::GraphicsPipelineCreateInfo graphics_pipeline_info = {
             .stageCount          = (uint32_t)config.shader_stages.size(),
@@ -745,9 +779,9 @@ namespace engine
                 .renderPass      = m_render_pass,
                 .attachmentCount = attachments.size(),
                 .pAttachments    = attachments.data(),
-                .width           = m_configuration.swapchain.extent.width,
-                .height          = m_configuration.swapchain.extent.height,
-                .layers          = m_configuration.swapchain.image_layers,
+                .width           = m_swapchain_config.extent.width,
+                .height          = m_swapchain_config.extent.height,
+                .layers          = m_swapchain_config.image_layers,
             };
 
             m_framebuffers[i] = m_device.createFramebuffer(framebuffer_create_info);
@@ -799,7 +833,7 @@ namespace engine
         vk::RenderPassBeginInfo render_pass_begin = {
             .renderPass      = m_render_pass,
             .framebuffer     = m_framebuffers[image_index],
-            .renderArea      = {.offset = {0, 0}, .extent = m_configuration.swapchain.extent},
+            .renderArea      = {.offset = {0, 0}, .extent = m_swapchain_config.extent},
             .clearValueCount = 1,
             .pClearValues    = &clear_value,
         };
@@ -807,15 +841,15 @@ namespace engine
         vk::Viewport viewport = {
             .x        = 0.0,
             .y        = 0.0,
-            .width    = (float)m_configuration.swapchain.extent.width,
-            .height   = (float)m_configuration.swapchain.extent.height,
+            .width    = (float)m_swapchain_config.extent.width,
+            .height   = (float)m_swapchain_config.extent.height,
             .minDepth = 0.0,
             .maxDepth = 1.0,
         };
 
         vk::Rect2D scissor = {
             .offset = {0, 0},
-            .extent = m_configuration.swapchain.extent,
+            .extent = m_swapchain_config.extent,
         };
 
         buffer.beginRenderPass(render_pass_begin, vk::SubpassContents::eInline);
