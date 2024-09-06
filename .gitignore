@@ -1,3 +1,5 @@
+target/
+
 CMakeLists.txt.user
 CMakeCache.txt
 CMakeFiles
