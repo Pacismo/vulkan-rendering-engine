@@ -13,12 +13,10 @@ namespace engine
     };
 
     /// Manages the data pertaining to the rendering device.
-    /// 
+    ///
     /// May be shared.
     class RenderDeviceManager final
     {
-        friend class Window;
-        friend class VulkanInstanceManager;
         friend class RenderManager;
 
         using SharedInstanceManager = std::shared_ptr<class VulkanInstanceManager>;
@@ -31,6 +29,14 @@ namespace engine
         static Shared new_shared(SharedInstanceManager instance_manager, vk::PhysicalDevice physical_device);
 
       private:
+        std::shared_ptr<spdlog::logger>              m_logger           = {};
+        std::shared_ptr<class VulkanInstanceManager> m_instance_manager = {};
+        vk::DispatchLoaderDynamic                    m_dispatch         = {};
+        vk::PhysicalDevice                           m_physical_device  = {};
+        vk::Device                                   m_device           = {};
+        Queue                                        m_graphics_queue   = {};
+        Queue                                        m_present_queue    = {};
+
         RenderDeviceManager(SharedInstanceManager instance_manager, vk::PhysicalDevice physical_device);
         ~RenderDeviceManager();
 
@@ -39,14 +45,7 @@ namespace engine
         RenderDeviceManager &operator=(const RenderDeviceManager &) = delete;
         RenderDeviceManager &operator=(RenderDeviceManager &&)      = delete;
 
+      public:
         static std::span<const char *> get_required_device_extensions();
-
-        std::shared_ptr<spdlog::logger>              m_logger           = {};
-        std::shared_ptr<class VulkanInstanceManager> m_instance_manager = {};
-        vk::DispatchLoaderDynamic                    m_dispatch         = {};
-        vk::PhysicalDevice                           m_physical_device  = {};
-        vk::Device                                   m_device           = {};
-        Queue                                        m_graphics_queue   = {};
-        Queue                                        m_present_queue    = {};
     };
 } // namespace engine

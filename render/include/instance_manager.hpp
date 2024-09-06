@@ -19,7 +19,6 @@ namespace engine
     {
         friend class RenderDeviceManager;
         friend class RenderManager;
-        friend class Window;
 
         class Deleter;
 
@@ -33,6 +32,13 @@ namespace engine
         std::span<const vk::PhysicalDevice> get_supported_rendering_devices() const;
 
       private:
+        std::shared_ptr<spdlog::logger> m_logger                      = {};
+        vk::DispatchLoaderDynamic       m_dispatch                    = {};
+        vk::Instance                    m_instance                    = {};
+        vk::DebugUtilsMessengerEXT      m_messenger                   = {};
+        std::vector<vk::PhysicalDevice> m_available_devices           = {};
+        std::vector<vk::PhysicalDevice> m_supported_rendering_devices = {};
+
         VulkanInstanceManager(std::string_view app_name, Version app_version);
         ~VulkanInstanceManager();
 
@@ -40,13 +46,6 @@ namespace engine
         VulkanInstanceManager(const VulkanInstanceManager &)            = delete;
         VulkanInstanceManager &operator=(VulkanInstanceManager &&)      = delete;
         VulkanInstanceManager &operator=(const VulkanInstanceManager &) = delete;
-
-        std::shared_ptr<spdlog::logger> m_logger                      = {};
-        vk::DispatchLoaderDynamic       m_dispatch                    = {};
-        vk::Instance                    m_instance                    = {};
-        vk::DebugUtilsMessengerEXT      m_messenger                   = {};
-        std::vector<vk::PhysicalDevice> m_available_devices           = {};
-        std::vector<vk::PhysicalDevice> m_supported_rendering_devices = {};
 
         static VkBool32 VKAPI_CALL debug_utils_callback(VkDebugUtilsMessageSeverityFlagBitsEXT      severity,
                                                         VkDebugUtilsMessageTypeFlagsEXT             type,
