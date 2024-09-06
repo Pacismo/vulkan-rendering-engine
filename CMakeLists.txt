@@ -18,6 +18,20 @@ find_package(spdlog CONFIG REQUIRED)
 find_package(unofficial-sqlite3 CONFIG REQUIRED)
 find_package(SQLiteCpp CONFIG REQUIRED)
 
+set(TOOLS_DIR "${CMAKE_BINARY_DIR}/tools")
+
+if (WIN32)
+	set(BINTOOL "${TOOLS_DIR}/bin/bintool.exe")
+elseif(UNIX)
+	set(BINTOOL "${TOOLS_DIR}/bin/bintool")
+endif()
+
+add_custom_target(Bintool
+				  "cargo" "install" "--path" "${GRT_SOURCE_DIR}/tools/bintool" "--root" "${TOOLS_DIR}"
+				  BYPRODUCTS "${BINTOOL}"
+				  SOURCES "${GRT_SOURCE_DIR}/tools/bintool/src/main.rs" "${GRT_SOURCE_DIR}/tools/bintool/src/error.rs"
+)
+
 add_subdirectory(render)
 add_subdirectory(runtime)
 
