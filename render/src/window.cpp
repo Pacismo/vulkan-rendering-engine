@@ -7,6 +7,7 @@
 #include "render_manager.hpp"
 #include "window.hpp"
 #include <algorithm>
+#include <chrono>
 #include <fmt/format.h>
 #include <span>
 #include <spdlog/spdlog.h>
@@ -15,7 +16,8 @@
 #include <vector>
 
 using std::string_view, std::span, std::vector, std::tuple, std::get, std::shared_ptr, std::stringstream, std::sort,
-    std::move, std::swap;
+    std::move, std::swap, std::chrono::system_clock, std::chrono::time_point, std::chrono::duration,
+    std::chrono::duration_cast, std::chrono::nanoseconds;
 
 namespace engine
 {
@@ -65,10 +67,37 @@ namespace engine
 
     void Window::run()
     {
-        while (!glfwWindowShouldClose(mp_window)) {
-            glfwPollEvents();
-            process();
-            m_render_manager->render_frame();
+        double   avg   = 0.0;
+        uint32_t count = 0;
+        uint32_t max   = 5;
+        double   timer = 0.0;
+        double   span  = 1.0;
+
+        try {
+            while (!glfwWindowShouldClose(mp_window)) {
+                glfwPollEvents();
+                process();
+
+                time_point start = system_clock::now();
+                m_render_manager->render_frame();
+                duration dur = system_clock::now() - start;
+
+                double seconds_per_frame =
+                    (double)duration_cast<nanoseconds>(dur).count() / (double)nanoseconds::period::den;
+                timer += seconds_per_frame;
+                if (count < max)
+                    count += 1;
+                avg = (avg * (count - 1) + seconds_per_frame) / count;
+                if (timer >= span) {
+                    spdlog::info("Average FPS: {:.2F}", 1.0 / avg);
+                    timer = 0.0;
+                }
+            }
+        } catch (vk::SystemError &error) {
+            auto &code    = error.code();
+            auto  message = error.what();
+            m_logger->error("Error encountered when calling {}", message);
+            throw VulkanException(code.value(), message);
         }
 
         m_render_manager->wait_idle();

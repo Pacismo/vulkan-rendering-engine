@@ -42,10 +42,7 @@ namespace engine
 
     static vector<const char *> get_unavailable_instance_extensions(span<const char *> extensions)
     {
-        auto [result, available_extensions] = vk::enumerateInstanceExtensionProperties();
-
-        if (result != vk::Result::eSuccess)
-            throw VulkanException((uint32_t)result, "Failed to get a list of Vulkan Instance extensions");
+        auto available_extensions = vk::enumerateInstanceExtensionProperties();
 
         vector<const char *> unavailable = {};
 
@@ -67,10 +64,7 @@ namespace engine
 
     static vector<const char *> get_unavailable_instance_layers(span<const char *> layers)
     {
-        auto [result, available_layers] = vk::enumerateInstanceLayerProperties();
-
-        if (result != vk::Result::eSuccess)
-            throw VulkanException((uint32_t)result, "Failed to get a list of Vulkan Instance layers");
+        auto available_layers = vk::enumerateInstanceLayerProperties();
 
         vector<const char *> unavailable = {};
 
@@ -203,44 +197,27 @@ namespace engine
             .ppEnabledExtensionNames = extensions.data(),
         };
 
-        {
-            auto [result, instance] = vk::createInstance(instance_create_info, nullptr, m_dispatch);
+        m_instance = vk::createInstance(instance_create_info, nullptr, m_dispatch);
 
-            if (result != vk::Result::eSuccess)
-                throw VulkanException((uint32_t)result, "Failed to initialize a Vulkan Instance");
-            m_logger->info("Created Vulkan Instance");
-
-            m_instance = instance;
-        }
+        m_logger->info("Created Vulkan Instance");
 
         m_dispatch.init(m_instance);
 
         if constexpr (DEBUG_ASSERTIONS) {
-            auto [result, dmessenger] =
-                m_instance.createDebugUtilsMessengerEXT(messenger_create_info, nullptr, m_dispatch);
+            m_messenger = m_instance.createDebugUtilsMessengerEXT(messenger_create_info, nullptr, m_dispatch);
 
-            if (result != vk::Result::eSuccess)
-                throw VulkanException((uint32_t)result, "Failed to initialize a Vulkan Debug Messenger");
             m_logger->info("Created debug utils messenger");
-
-            m_messenger = dmessenger;
         }
 
         {
-            auto [result, available_devices] = m_instance.enumeratePhysicalDevices();
-
-            if (result != vk::Result::eSuccess)
-                throw VulkanException((uint32_t)result, "Failed to enumerate physical devices");
+            auto available_devices = m_instance.enumeratePhysicalDevices();
 
             span<const char *> required_device_extensions = RenderDeviceManager::get_required_device_extensions();
             vector<vk::PhysicalDevice> supported_devices  = {};
 
             // Get a list of supported devices
-            for (auto device : available_devices) {
-                auto [result, available_extensions] = device.enumerateDeviceExtensionProperties();
-
-                if (result != vk::Result::eSuccess)
-                    throw VulkanException((uint32_t)result, "Failed to query device extension support");
+            for (vk::PhysicalDevice device : available_devices) {
+                auto available_extensions = device.enumerateDeviceExtensionProperties();
 
                 bool supported = true;
 

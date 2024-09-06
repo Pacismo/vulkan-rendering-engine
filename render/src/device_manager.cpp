@@ -100,13 +100,8 @@ namespace engine
                 .pEnabledFeatures        = &features,
             };
 
-            auto [result, device] = m_physical_device.createDevice(dci);
-
-            if (result != vk::Result::eSuccess)
-                throw VulkanException((uint32_t)result, "Failed to create device");
+            m_device = m_physical_device.createDevice(dci);
             m_logger->info("Created device");
-
-            m_device = device;
         }
 
         m_graphics_queue = Queue {

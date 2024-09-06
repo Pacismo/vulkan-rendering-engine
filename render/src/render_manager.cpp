@@ -1,6 +1,7 @@
 #include "render_manager.hpp"
 #include "exceptions.hpp"
 #include "logger.hpp"
+#include "window.hpp"
 #include <algorithm>
 #include <array>
 #include <device_manager.hpp>
@@ -164,11 +165,7 @@ static vk::ShaderModule create_shader_module(vk::Device device, span<const uint3
         .pCode    = spirv_code.data(),
     };
 
-    auto [result, smodule] = device.createShaderModule(create_info);
-    if (result != vk::Result::eSuccess)
-        throw engine::VulkanException((uint32_t)result, "Failed to create a shader module");
-
-    return smodule;
+    return device.createShaderModule(create_info);
 }
 
 namespace engine
@@ -208,22 +205,10 @@ namespace engine
 
     SwapchainSupportDetails SwapchainSupportDetails::query(vk::PhysicalDevice device, vk::SurfaceKHR surface)
     {
-        auto capabilities = device.getSurfaceCapabilitiesKHR(surface);
-        if (capabilities.result != vk::Result::eSuccess)
-            throw VulkanException((uint32_t)capabilities.result, "Failed to query surface capabilities");
-
-        auto formats = device.getSurfaceFormatsKHR(surface);
-        if (formats.result != vk::Result::eSuccess)
-            throw VulkanException((uint32_t)formats.result, "Failed to query surface formats");
-
-        auto modes = device.getSurfacePresentModesKHR(surface);
-        if (modes.result != vk::Result::eSuccess)
-            throw VulkanException((uint32_t)modes.result, "Failed to query surface present modes");
-
         return SwapchainSupportDetails {
-            .capabilities = capabilities.value,
-            .formats      = formats.value,
-            .modes        = modes.value,
+            .capabilities = device.getSurfaceCapabilitiesKHR(surface),
+            .formats      = device.getSurfaceFormatsKHR(surface),
+            .modes        = device.getSurfacePresentModesKHR(surface),
         };
     }
 
@@ -264,6 +249,8 @@ namespace engine
 
         initialize_pipeline_configuration();
 
+        glfwSetFramebufferSizeCallback(m_window, handle_framebuffer_resize);
+
         create_pipeline();
     }
 
@@ -284,14 +271,20 @@ namespace engine
 
         initialize_pipeline_configuration();
 
+        glfwSetFramebufferSizeCallback(m_window, handle_framebuffer_resize);
+
         create_pipeline();
     }
 
     RenderManager::~RenderManager()
     {
-        clean_pipeline();
+        destroy_swapchain();
 
-        m_sync.destroy(m_device);
+        for (auto &sync : m_sync)
+            sync.destroy(m_device);
+
+        if (m_pipeline)
+            m_device.destroyPipeline(m_pipeline);
 
         if (m_command_pool)
             m_device.destroyCommandPool(m_command_pool);
@@ -316,7 +309,7 @@ namespace engine
         m_logger->info("Destroyed render manager");
 
         m_command_buffers.clear();
-        m_sync             = {};
+        m_sync.clear();
         m_command_pool     = nullptr;
         m_pipeline         = nullptr;
         m_pipeline_layout  = nullptr;
@@ -346,56 +339,72 @@ namespace engine
     {
         constexpr uint64_t TIMEOUT = std::numeric_limits<uint64_t>::max();
 
-        auto wait_result = m_device.waitForFences(m_sync.in_flight, true, TIMEOUT);
+        if (!m_valid_framebuffer) {
+            m_valid_framebuffer = recreate_swapchain();
+            return;
+        }
+
+        uint32_t          frame      = m_frame_index;
+        GpuSync          &sync       = m_sync[frame];
+        vk::CommandBuffer cmd_buffer = m_command_buffers[frame];
+
+        auto wait_result = m_device.waitForFences(sync.in_flight, true, TIMEOUT);
         if (wait_result != vk::Result::eSuccess)
             throw VulkanException((uint32_t)wait_result, "Failed to wait on fence");
 
-        auto reset_result = m_device.resetFences(m_sync.in_flight);
-        if (reset_result != vk::Result::eSuccess)
-            throw VulkanException((uint32_t)reset_result, "Failed to reset fence");
-
-        auto [ia_result, image_index] = m_device.acquireNextImageKHR(m_swapchain, TIMEOUT, m_sync.image_available);
-        if (ia_result != vk::Result::eSuccess)
+        auto [ia_result, image_index] = m_device.acquireNextImageKHR(m_swapchain, TIMEOUT, sync.image_available);
+        if (ia_result == vk::Result::eErrorOutOfDateKHR) {
+            m_valid_framebuffer = recreate_swapchain();
+            return;
+        } else if (ia_result != vk::Result::eSuccess)
             throw VulkanException((uint32_t)ia_result, "Failed to acquire image");
 
-        m_command_buffers[0].reset();
-        record_command_buffer(m_command_buffers[0], image_index);
+        m_device.resetFences(sync.in_flight);
+
+        cmd_buffer.reset();
+        record_command_buffer(cmd_buffer, image_index);
 
         vk::PipelineStageFlags wait_stages = vk::PipelineStageFlagBits::eColorAttachmentOutput;
 
         vk::SubmitInfo submit = {
             .waitSemaphoreCount   = 1,
-            .pWaitSemaphores      = &m_sync.image_available,
+            .pWaitSemaphores      = &sync.image_available,
             .pWaitDstStageMask    = &wait_stages,
             .commandBufferCount   = 1,
-            .pCommandBuffers      = &m_command_buffers[0],
+            .pCommandBuffers      = &cmd_buffer,
             .signalSemaphoreCount = 1,
-            .pSignalSemaphores    = &m_sync.render_finished,
+            .pSignalSemaphores    = &sync.render_finished,
         };
 
-        auto s_result = m_graphics_queue.submit(submit, m_sync.in_flight);
-        if (s_result != vk::Result::eSuccess)
-            throw VulkanException((uint32_t)s_result, "Failed to submit command buffer");
+        m_graphics_queue.submit(submit, sync.in_flight);
 
         vk::PresentInfoKHR present = {
             .waitSemaphoreCount = 1,
-            .pWaitSemaphores    = &m_sync.render_finished,
+            .pWaitSemaphores    = &sync.render_finished,
             .swapchainCount     = 1,
             .pSwapchains        = &m_swapchain,
             .pImageIndices      = &image_index,
             .pResults           = nullptr,
         };
 
-        auto p_result = m_present_queue.presentKHR(present);
-        if (p_result != vk::Result::eSuccess)
-            throw VulkanException((uint32_t)p_result, "Failed to present image");
+        bool should_recreate_swapchain = false;
+        try {
+            should_recreate_swapchain = m_present_queue.presentKHR(present) == vk::Result::eSuboptimalKHR;
+        } catch (vk::OutOfDateKHRError) {
+            should_recreate_swapchain = true;
+        }
+
+        if (should_recreate_swapchain || m_framebuffer_resized) {
+            m_framebuffer_resized = false;
+            m_valid_framebuffer   = recreate_swapchain();
+        }
+
+        m_frame_index = ++m_frame_index % IN_FLIGHT;
     }
 
     void RenderManager::wait_idle()
     {
-        auto result = m_device.waitIdle();
-        if (result != vk::Result::eSuccess)
-            throw VulkanException((uint32_t)result, "Failed to wait for device idle");
+        m_device.waitIdle();
     }
 
     RenderManager::RenderManager(RenderManager &&other) noexcept
@@ -442,6 +451,13 @@ namespace engine
         swap(m_configuration, other.m_configuration);
 
         return *this;
+    }
+
+    void RenderManager::handle_framebuffer_resize(GLFWwindow *window, int width, int height)
+    {
+        Window *w = (Window *)glfwGetWindowUserPointer(window);
+
+        w->m_render_manager->m_framebuffer_resized = true;
     }
 
     void RenderManager::initialize_pipeline_configuration()
@@ -537,11 +553,8 @@ namespace engine
             .pDependencies   = &subpass,
         };
 
-        auto [result, render_pass] = m_device.createRenderPass(render_pass_create_info);
-        if (result != vk::Result::eSuccess)
-            throw VulkanException((uint32_t)result, "Failed to create render pass");
-
-        m_render_pass = render_pass;
+        m_render_pass = m_device.createRenderPass(render_pass_create_info);
+        m_logger->info("Created render pass");
     }
 
     void RenderManager::create_pipeline()
@@ -554,9 +567,12 @@ namespace engine
         create_command_pool();
         allocate_command_buffers();
         create_sync_primitives();
+
+        m_valid_framebuffer =
+            m_configuration.swapchain.extent.width != 0 && m_configuration.swapchain.extent.height != 0;
     }
 
-    void RenderManager::clean_pipeline()
+    void RenderManager::destroy_swapchain()
     {
         wait_idle();
 
@@ -564,20 +580,32 @@ namespace engine
             m_device.destroyFramebuffer(framebuffer);
         m_framebuffers.clear();
 
-        if (m_pipeline)
-            m_device.destroyPipeline(m_pipeline);
-
         for (vk::ImageView view : m_image_views)
             m_device.destroyImageView(view);
 
         m_image_views.clear();
         m_images.clear();
+
+        m_logger->info("Destroyed swapchain");
     }
 
-    void RenderManager::recreate_pipeline()
+    bool RenderManager::recreate_swapchain()
     {
-        clean_pipeline();
-        create_pipeline();
+        if (m_valid_framebuffer)
+            destroy_swapchain();
+
+        int width = 0, height = 0;
+        glfwGetFramebufferSize(m_window, &width, &height);
+
+        if (width == 0 || height == 0) {
+            return false;
+        }
+
+        create_swapchain();
+        get_images();
+        create_framebuffers();
+
+        return true;
     }
 
     void RenderManager::create_swapchain()
@@ -620,12 +648,8 @@ namespace engine
             .oldSwapchain          = m_swapchain, // Should be NULL for the first call
         };
 
-        auto [result, swapchain] = m_device.createSwapchainKHR(swapchain_create_info);
-        if (result != vk::Result::eSuccess)
-            throw VulkanException((uint32_t)result, "Failed to create Swapchain");
+        m_swapchain = m_device.createSwapchainKHR(swapchain_create_info);
         m_logger->info("Created swapchain");
-
-        m_swapchain = swapchain;
     }
 
     static vector<vk::ImageView> create_image_views(vk::Device device, span<vk::Image> images, vk::Format format,
@@ -650,10 +674,7 @@ namespace engine
                                      .layerCount     = image_layers},
             };
 
-            auto [result, view] = device.createImageView(create_info);
-            if (result != vk::Result::eSuccess)
-                throw VulkanException((uint32_t)result, "Failed to create an image view");
-            image_views.push_back(view);
+            image_views.push_back(device.createImageView(create_info));
         }
 
         return image_views;
@@ -661,13 +682,7 @@ namespace engine
 
     void RenderManager::get_images()
     {
-        {
-            auto [result, images] = m_device.getSwapchainImagesKHR(m_swapchain);
-            if (result != vk::Result::eSuccess)
-                throw VulkanException((uint32_t)result, "Failed to get Swapchain images");
-
-            m_images = images;
-        }
+        m_images = m_device.getSwapchainImagesKHR(m_swapchain);
 
         m_image_views = create_image_views(m_device, m_images, m_configuration.swapchain.format,
                                            m_configuration.swapchain.image_layers);
@@ -684,14 +699,8 @@ namespace engine
             .pPushConstantRanges    = nullptr,
         };
 
-        {
-            auto [result, pipeline_layout] = m_device.createPipelineLayout(pipeline_layout_create_info);
-            if (result != vk::Result::eSuccess)
-                throw VulkanException((uint32_t)result, "Failed to create a pipeline layout");
-            m_logger->info("Created render pipeline layout");
-
-            m_pipeline_layout = pipeline_layout;
-        }
+        m_pipeline_layout = m_device.createPipelineLayout(pipeline_layout_create_info);
+        m_logger->info("Created render pipeline layout");
 
         auto config = PreparedPipelineConfiguration(m_configuration.pipeline, m_pipeline_layout);
 
@@ -741,14 +750,10 @@ namespace engine
                 .layers          = m_configuration.swapchain.image_layers,
             };
 
-            auto [result, framebuffer] = m_device.createFramebuffer(framebuffer_create_info);
-            if (result != vk::Result::eSuccess)
-                throw VulkanException((uint32_t)result, "Failed to create framebuffer");
-
-            m_framebuffers[i] = framebuffer;
+            m_framebuffers[i] = m_device.createFramebuffer(framebuffer_create_info);
         }
 
-        m_logger->info("Created framebuffer");
+        m_logger->info("Created framebuffers");
     }
 
     void RenderManager::create_command_pool()
@@ -758,12 +763,7 @@ namespace engine
             .queueFamilyIndex = m_device_manager->m_graphics_queue.index,
         };
 
-        auto [result, command_pool] = m_device.createCommandPool(create_info);
-        if (result != vk::Result::eSuccess)
-            throw VulkanException((uint32_t)result, "Failed to create command pool");
-        m_logger->info("Created command pool");
-
-        m_command_pool = command_pool;
+        m_command_pool = m_device.createCommandPool(create_info);
     }
 
     void RenderManager::allocate_command_buffers()
@@ -774,17 +774,15 @@ namespace engine
             .commandBufferCount = IN_FLIGHT,
         };
 
-        auto [result, command_buffers] = m_device.allocateCommandBuffers(allocate_info);
-        if (result != vk::Result::eSuccess)
-            throw VulkanException((uint32_t)result, "Failed to allocate command buffers");
-        m_logger->info("Allocated {} command buffers", command_buffers.size());
-
-        m_command_buffers = move(command_buffers);
+        m_command_buffers = m_device.allocateCommandBuffers(allocate_info);
+        m_logger->info("Allocated {} command buffers", m_command_buffers.size());
     }
 
     void RenderManager::create_sync_primitives()
     {
-        m_sync.init(m_device);
+        m_sync.resize(IN_FLIGHT);
+        for (auto &sync : m_sync)
+            sync.init(m_device);
     }
 
     void RenderManager::record_command_buffer(vk::CommandBuffer buffer, uint32_t image_index)
@@ -794,9 +792,7 @@ namespace engine
             .pInheritanceInfo = nullptr,
         };
 
-        auto result = buffer.begin(buffer_begin);
-        if (result != vk::Result::eSuccess)
-            throw VulkanException((uint32_t)result, "Failed to begin recording command buffer");
+        buffer.begin(buffer_begin);
 
         vk::ClearValue clear_value = vk::ClearValue {vk::ClearColorValue {array {0.0f, 0.0f, 0.0f, 1.0f}}};
 
@@ -828,10 +824,7 @@ namespace engine
         buffer.setScissor(0, scissor);
         buffer.draw(3, 1, 0, 0);
         buffer.endRenderPass();
-        result = buffer.end();
-
-        if (result != vk::Result::eSuccess)
-            throw VulkanException((uint32_t)result, "Failed to record command buffer");
+        buffer.end();
     }
 
     void GpuSync::init(vk::Device device)
@@ -841,27 +834,11 @@ namespace engine
                 .flags = vk::FenceCreateFlagBits::eSignaled,
         };
 
-        {
-            auto [result, semaphore] = device.createSemaphore(sem);
-            if (result != vk::Result::eSuccess)
-                throw VulkanException((uint32_t)result, "Failed to create semaphore");
+        image_available = device.createSemaphore(sem);
 
-            image_available = semaphore;
-        }
-        {
-            auto [result, semaphore] = device.createSemaphore(sem);
-            if (result != vk::Result::eSuccess)
-                throw VulkanException((uint32_t)result, "Failed to create semaphore");
+        render_finished = device.createSemaphore(sem);
 
-            render_finished = semaphore;
-        }
-        {
-            auto [result, fence] = device.createFence(fen);
-            if (result != vk::Result::eSuccess)
-                throw VulkanException((uint32_t)result, "Failed to create fence");
-
-            in_flight = fence;
-        }
+        in_flight = device.createFence(fen);
     }
 
     void GpuSync::destroy(vk::Device device)
