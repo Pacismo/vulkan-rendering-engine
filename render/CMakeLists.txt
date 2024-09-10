@@ -12,10 +12,10 @@ set(RENDER_SOURCES
 
 add_library(render ${RENDER_SOURCES})
 
-add_dependencies(render Bintool)
+add_dependencies(render CompSHDR)
 
-execute_process(COMMAND "${BINTOOL}" "${CMAKE_CURRENT_SOURCE_DIR}/frag.spv" "-l" OUTPUT_VARIABLE FRAG_SHADER)
-execute_process(COMMAND "${BINTOOL}" "${CMAKE_CURRENT_SOURCE_DIR}/vert.spv" "-l" OUTPUT_VARIABLE VERT_SHADER)
+execute_process(COMMAND "${COMPSHDR}" "${CMAKE_CURRENT_SOURCE_DIR}/shader.frag" "-m" "u32-list" "-k" "fragment" OUTPUT_VARIABLE FRAG_SHADER)
+execute_process(COMMAND "${COMPSHDR}" "${CMAKE_CURRENT_SOURCE_DIR}/shader.vert" "-m" "u32-list" "-k" "vertex" OUTPUT_VARIABLE VERT_SHADER)
 
 configure_file("cfg/shaders.hpp" "cfg/shaders.hpp")
 

@@ -12,10 +12,10 @@ using MeshHandle = engine::RenderBackend::MeshHandlePtr;
 
 // TODO: load into a framebuffer and render it
 const array<Vertex, 4> VERTICES = {
-    Vertex {.position = {-0.5, -0.5}, .color = {1.0, 0.0, 0.0}},
-    Vertex {.position = {0.5, -0.5}, .color = {0.0, 1.0, 0.0}},
-    Vertex {.position = {0.5, 0.5}, .color = {0.0, 0.0, 1.0}},
-    Vertex {.position = {-0.5, 0.5}, .color = {1.0, 1.0, 1.0}},
+    Vertex {.position = {-0.5, -0.5, 0.0}, .color = {1.0, 0.0, 0.0}},
+    Vertex { .position = {0.5, -0.5, 0.0}, .color = {0.0, 1.0, 0.0}},
+    Vertex {  .position = {0.5, 0.5, 0.0}, .color = {0.0, 0.0, 1.0}},
+    Vertex { .position = {-0.5, 0.5, 0.0}, .color = {1.0, 1.0, 1.0}},
 };
 
 const array<uint32_t, 6> INDICES = {0, 1, 2, 2, 3, 0};

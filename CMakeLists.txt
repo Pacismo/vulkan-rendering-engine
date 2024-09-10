@@ -23,14 +23,22 @@ set(TOOLS_DIR "${CMAKE_BINARY_DIR}/tools")
 
 if (WIN32)
 	set(BINTOOL "${TOOLS_DIR}/bin/bintool.exe")
-elseif(UNIX)
+	set(COMPSHDR "${TOOLS_DIR}/bin/compshdr.exe")
+	elseif(UNIX)
 	set(BINTOOL "${TOOLS_DIR}/bin/bintool")
+	set(COMPSHDR "${TOOLS_DIR}/bin/compshdr")
 endif()
 
 add_custom_target(Bintool
 				  "cargo" "install" "--path" "${GRT_SOURCE_DIR}/tools/bintool" "--root" "${TOOLS_DIR}"
 				  BYPRODUCTS "${BINTOOL}"
 				  SOURCES "${GRT_SOURCE_DIR}/tools/bintool/src/main.rs" "${GRT_SOURCE_DIR}/tools/bintool/src/error.rs"
+)
+
+add_custom_target(CompSHDR
+				  "cargo" "install" "--path" "${GRT_SOURCE_DIR}/tools/compshdr" "--root" "${TOOLS_DIR}"
+				  BYPRODUCTS "${COMPSHDR}"
+				  SOURCES "${GRT_SOURCE_DIR}/tools/compshdr/src/main.rs" "${GRT_SOURCE_DIR}/tools/compshdr/src/error.rs" "${GRT_SOURCE_DIR}/tools/compshdr/src/cli.rs"
 )
 
 add_subdirectory(render)
