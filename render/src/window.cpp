@@ -17,7 +17,8 @@
 
 using std::string_view, std::span, std::vector, std::tuple, std::get, std::shared_ptr, std::stringstream, std::sort,
     std::move, std::swap, std::chrono::system_clock, std::chrono::time_point, std::chrono::duration,
-    std::chrono::duration_cast, std::chrono::nanoseconds;
+    std::chrono::duration_cast, std::chrono::time_point_cast, std::chrono::nanoseconds, std::chrono::seconds;
+using namespace std::chrono_literals;
 
 namespace engine
 {
@@ -70,32 +71,41 @@ namespace engine
         return m_render_manager;
     }
 
-    void Window::run()
+    void Window::run(double pproc_freq)
     {
-        double   avg   = 0.0;
-        uint32_t count = 0;
-        uint32_t max   = 5;
-        double   timer = 0.0;
-        double   span  = 1.0;
+        double     avg            = 0.0;
+        uint32_t   count          = 0;
+        uint32_t   max            = 5;
+        duration   print_period   = 1s;
+        time_point last_draw      = system_clock::now();
+        time_point next_print     = last_draw;
+        time_point next_physics   = last_draw;
+        duration   physics_period = duration_cast<system_clock::duration>(duration<double>(1.0 / pproc_freq));
 
         try {
             while (!glfwWindowShouldClose(mp_window)) {
+                time_point now          = system_clock::now();
+                duration   render_delta = duration_cast<duration<double>>(now - last_draw);
+
                 glfwPollEvents();
-                process();
+                process(render_delta.count());
+
+                if (now >= next_physics) {
+                    physics_process(physics_period.count());
+                    next_physics = next_physics + physics_period;
+                }
 
                 time_point start = system_clock::now();
                 m_render_manager->render_frame();
                 duration dur = system_clock::now() - start;
+                last_draw    = now;
 
-                double seconds_per_frame =
-                    (double)duration_cast<nanoseconds>(dur).count() / (double)nanoseconds::period::den;
-                timer += seconds_per_frame;
                 if (count < max)
                     count += 1;
-                avg = (avg * (count - 1) + seconds_per_frame) / count;
-                if (timer >= span) {
+                avg = (avg * (count - 1) + render_delta.count()) / count;
+                if (now >= next_print) {
                     spdlog::info("Average FPS: {:.2F}", 1.0 / avg);
-                    timer = 0.0;
+                    next_print += print_period;
                 }
             }
         } catch (vk::SystemError &error) {

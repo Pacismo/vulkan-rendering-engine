@@ -305,7 +305,7 @@ namespace engine
 
         m_staging_buffer.deinit(m_device, m_command_pool, m_allocator);
 
-        for (auto vba : m_loaded_meshes)
+        for (auto vba : m_draw_queue)
             vba->destroy();
 
         if (m_allocator)
@@ -339,7 +339,7 @@ namespace engine
 
         m_logger->info("Destroyed render manager");
 
-        m_loaded_meshes.clear();
+        m_draw_queue.clear();
         m_command_buffers.clear();
         m_sync.clear();
 
@@ -462,7 +462,7 @@ namespace engine
         , m_fragment_shader(move(other.m_fragment_shader))
         , m_allocator(move(other.m_allocator))
         , m_staging_buffer(move(other.m_staging_buffer))
-        , m_loaded_meshes(move(other.m_loaded_meshes))
+        , m_draw_queue(move(other.m_draw_queue))
     { }
 
     VulkanBackend &VulkanBackend::operator=(VulkanBackend &&other) noexcept
@@ -488,7 +488,7 @@ namespace engine
 
         swap(m_allocator, other.m_allocator);
         swap(m_staging_buffer, other.m_staging_buffer);
-        swap(m_loaded_meshes, other.m_loaded_meshes);
+        swap(m_draw_queue, other.m_draw_queue);
 
         swap(m_swapchain_config, other.m_swapchain_config);
         swap(m_vertex_shader, other.m_vertex_shader);
@@ -902,7 +902,9 @@ namespace engine
         buffer.setViewport(0, viewport);
         buffer.setScissor(0, scissor);
 
-        for (auto &vba : m_loaded_meshes) {
+        for (auto &vba : m_draw_queue) {
+            if (!vba->is_visible)
+                continue;
             buffer.bindVertexBuffers(0, vba->buffer, vba->vtx_offset);
             buffer.bindIndexBuffer(vba->buffer, vba->idx_offset, vk::IndexType::eUint32);
             buffer.drawIndexed(vba->count, 1, 0, 0, 0);
@@ -972,13 +974,9 @@ namespace engine
         m_staging_buffer.transfer(buf, m_graphics_queue, 0, 0, total_bytes);
         m_staging_buffer.wait(m_device);
 
-        VertexBufferAllocation *vba =
-            new VertexBufferAllocation(this, alloc, buf, 0, vertices.size_bytes(),
-                                       (vk::DeviceSize)vertices.size_bytes(), (uint32_t)indices.size());
-
-        m_loaded_meshes.push_front(vba);
-
-        return MeshHandlePtr(vba);
+        return MeshHandlePtr(new VertexBufferAllocation(this, alloc, buf, 0, vertices.size_bytes(),
+                                                        (vk::DeviceSize)vertices.size_bytes(),
+                                                        (uint32_t)indices.size()));
     }
 
     VulkanBackend::VertexBufferAllocation::VertexBufferAllocation(VulkanBackend *backend, VmaAllocation alloc,
@@ -1001,7 +999,7 @@ namespace engine
             vmaDestroyBuffer(backend->m_allocator, buffer, alloc);
 
         if (destructor)
-            backend->m_loaded_meshes.remove(this);
+            backend->m_draw_queue.remove(this);
 
         buffer     = nullptr;
         alloc      = nullptr;

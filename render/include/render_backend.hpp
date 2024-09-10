@@ -14,7 +14,7 @@ namespace engine
             virtual ~MeshHandle() = default;
 
             virtual void visible(bool value) = 0;
-            virtual bool visible() const = 0;
+            virtual bool visible() const     = 0;
         };
 
       public:

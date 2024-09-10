@@ -28,9 +28,10 @@ namespace engine
 
         std::shared_ptr<RenderBackend> get_render_backend();
 
-        virtual void process() = 0;
+        virtual void process(double delta) = 0;
+        virtual void physics_process(double delta) = 0;
 
-        void run();
+        void run(double pproc_freq = 20.0);
 
         virtual ~Window();
 

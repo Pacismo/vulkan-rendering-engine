@@ -1,4 +1,5 @@
 #include <algorithm>
+#include <chrono>
 #include <exceptions.hpp>
 #include <fmt/format.h>
 #include <memory>
@@ -7,7 +8,9 @@
 #include <vertex.hpp>
 #include <window.hpp>
 
-using std::shared_ptr, std::initializer_list, engine::Window, std::string_view, std::array, engine::primitives::Vertex;
+using namespace std::chrono_literals;
+using std::shared_ptr, std::initializer_list, engine::Window, std::string_view, std::array, engine::primitives::Vertex,
+    std::chrono::time_point, std::chrono::system_clock;
 using MeshHandle = engine::RenderBackend::MeshHandlePtr;
 
 const array<Vertex, 4> VERTICES = {
@@ -22,6 +25,8 @@ const array<uint32_t, 6> INDICES = {0, 1, 2, 2, 3, 0};
 class ExampleWindow : public Window
 {
     MeshHandle triangle;
+    double     next_draw;
+    bool       queue = false;
 
   public:
     ExampleWindow(string_view title, int width, int height)
@@ -32,10 +37,24 @@ class ExampleWindow : public Window
         auto vertices = VERTICES;
         auto indices  = INDICES;
 
-        triangle = rb->load(vertices, indices);
+        triangle  = rb->load(vertices, indices);
+        next_draw = 2.0;
     }
 
-    void process() override { }
+    void process(double delta) override
+    {
+        if (queue) {
+            triangle->queue_draw();
+        }
+    }
+
+    void physics_process(double delta) override {
+        next_draw -= delta;
+        if (next_draw <= 0.0) {
+            queue = !queue;
+            next_draw = 2.0;
+        }
+    }
 };
 
 static void set_spdlog_global_settings()

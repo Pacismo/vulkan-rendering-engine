@@ -156,7 +156,7 @@ namespace engine
         vk::ShaderModule                            m_vertex_shader   = {};
         vk::ShaderModule                            m_fragment_shader = {};
         VmaAllocator                                m_allocator       = {};
-        std::forward_list<VertexBufferAllocation *> m_loaded_meshes   = {};
+        std::forward_list<VertexBufferAllocation *> m_draw_queue      = {};
         StagingBuffer                               m_staging_buffer  = {};
 
         SwapchainConfiguration m_swapchain_config    = {};
