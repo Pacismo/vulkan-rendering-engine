@@ -1,4 +1,5 @@
 #pragma once
+#include "render_backend.hpp"
 #include "version.hpp"
 
 #include <GLFW/glfw3.h>
@@ -10,8 +11,8 @@ namespace engine
 {
     class Window
     {
-        friend class RenderManager;
-        using SharedRenderManager = std::shared_ptr<class RenderManager>;
+        friend class VulkanBackend;
+        using SharedRenderManager = std::shared_ptr<class VulkanBackend>;
 
       public:
         /// Create a new window, creating new instance and device configurations.
@@ -24,6 +25,8 @@ namespace engine
         void hide();
 
         void set_title(std::string_view new_title);
+
+        std::shared_ptr<RenderBackend> get_render_backend();
 
         virtual void process() = 0;
 

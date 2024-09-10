@@ -18,7 +18,7 @@ namespace engine
     class VulkanInstanceManager final
     {
         friend class RenderDeviceManager;
-        friend class RenderManager;
+        friend class VulkanBackend;
 
         class Deleter;
 
@@ -31,14 +31,14 @@ namespace engine
         std::span<const vk::PhysicalDevice> get_available_physical_devices() const;
         std::span<const vk::PhysicalDevice> get_supported_rendering_devices() const;
 
-      private:
-        std::shared_ptr<spdlog::logger> m_logger                      = {};
-        vk::DispatchLoaderDynamic       m_dispatch                    = {};
-        vk::Instance                    m_instance                    = {};
-        vk::DebugUtilsMessengerEXT      m_messenger                   = {};
-        std::vector<vk::PhysicalDevice> m_available_devices           = {};
-        std::vector<vk::PhysicalDevice> m_supported_rendering_devices = {};
+        std::shared_ptr<spdlog::logger> logger                      = {};
+        vk::DispatchLoaderDynamic       dispatch                    = {};
+        vk::Instance                    instance                    = {};
+        vk::DebugUtilsMessengerEXT      messenger                   = {};
+        std::vector<vk::PhysicalDevice> available_devices           = {};
+        std::vector<vk::PhysicalDevice> supported_rendering_devices = {};
 
+      private:
         VulkanInstanceManager(std::string_view app_name, Version app_version);
         ~VulkanInstanceManager();
 

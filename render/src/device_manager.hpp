@@ -17,7 +17,7 @@ namespace engine
     /// May be shared.
     class RenderDeviceManager final
     {
-        friend class RenderManager;
+        friend class VulkanBackend;
 
         using SharedInstanceManager = std::shared_ptr<class VulkanInstanceManager>;
 
@@ -28,15 +28,15 @@ namespace engine
 
         static Shared new_shared(SharedInstanceManager instance_manager, vk::PhysicalDevice physical_device);
 
-      private:
-        std::shared_ptr<spdlog::logger>              m_logger           = {};
-        std::shared_ptr<class VulkanInstanceManager> m_instance_manager = {};
-        vk::DispatchLoaderDynamic                    m_dispatch         = {};
-        vk::PhysicalDevice                           m_physical_device  = {};
-        vk::Device                                   m_device           = {};
-        Queue                                        m_graphics_queue   = {};
-        Queue                                        m_present_queue    = {};
+        std::shared_ptr<spdlog::logger>              logger           = {};
+        std::shared_ptr<class VulkanInstanceManager> instance_manager = {};
+        vk::DispatchLoaderDynamic                    dispatch         = {};
+        vk::PhysicalDevice                           physical_device  = {};
+        vk::Device                                   device           = {};
+        Queue                                        graphics_queue   = {};
+        Queue                                        present_queue    = {};
 
+      private:
         RenderDeviceManager(SharedInstanceManager instance_manager, vk::PhysicalDevice physical_device);
         ~RenderDeviceManager();
 

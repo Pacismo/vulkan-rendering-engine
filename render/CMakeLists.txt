@@ -6,8 +6,9 @@ set(RENDER_SOURCES
     "src/device_manager.cpp"     "src/device_manager.hpp"
     "src/window.cpp"             "include/window.hpp"
     "src/logger.cpp"             "src/logger.hpp"
-    "src/render_manager.cpp"     "src/render_manager.hpp"
-    "include/vertex.hpp"         "src/vertex_description.hpp")
+    "src/vulkan_backend.cpp"     "src/vulkan_backend.hpp"
+    "include/vertex.hpp"         "src/vertex_description.hpp"
+    "include/render_backend.hpp" "src/vma_impl.cpp")
 
 add_library(render ${RENDER_SOURCES})
 
@@ -19,7 +20,7 @@ execute_process(COMMAND "${BINTOOL}" "${CMAKE_CURRENT_SOURCE_DIR}/vert.spv" "-l"
 configure_file("cfg/shaders.hpp" "cfg/shaders.hpp")
 
 target_include_directories(render PUBLIC "include" PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/cfg")
-target_link_libraries(render PRIVATE Vulkan::Vulkan PUBLIC glfw spdlog::spdlog fmt::fmt glm::glm)
+target_link_libraries(render PRIVATE Vulkan::Vulkan GPUOpen::VulkanMemoryAllocator PUBLIC glfw spdlog::spdlog fmt::fmt glm::glm)
 
 target_compile_definitions(render PRIVATE
     ENGINE_NAME="${GRT_ENGINE_NAME}"
@@ -27,4 +28,5 @@ target_compile_definitions(render PRIVATE
     ENGINE_VERSION_MINOR=${GRT_VERSION_MINOR}
     ENGINE_VERSION_PATCH=${GRT_VERSION_PATCH}
     VULKAN_HPP_NO_STRUCT_CONSTRUCTORS=1
+    VMA_VULKAN_VERSION=1003000
 )

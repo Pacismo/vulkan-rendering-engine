@@ -4,7 +4,7 @@
 #include "exceptions.hpp"
 #include "instance_manager.hpp"
 #include "logger.hpp"
-#include "render_manager.hpp"
+#include "vulkan_backend.hpp"
 #include "window.hpp"
 #include <algorithm>
 #include <chrono>
@@ -35,7 +35,7 @@ namespace engine
         glfwSetWindowUserPointer(mp_window, this);
         m_logger->info("Created window");
 
-        m_render_manager = RenderManager::new_shared(application_name, application_version, mp_window);
+        m_render_manager = VulkanBackend::new_shared(application_name, application_version, mp_window);
     }
 
     Window::Window(string_view title, int32_t width, int32_t height, const Window &other)
@@ -47,7 +47,7 @@ namespace engine
             throw GlfwException("Failed to create a new window");
         m_logger->info("Created window");
 
-        m_render_manager = RenderManager::new_shared(other.m_render_manager, mp_window);
+        m_render_manager = VulkanBackend::new_shared(other.m_render_manager, mp_window);
     }
 
     void Window::show()
@@ -63,6 +63,11 @@ namespace engine
     void Window::set_title(string_view new_title)
     {
         glfwSetWindowTitle(mp_window, new_title.data());
+    }
+
+    std::shared_ptr<RenderBackend> Window::get_render_backend()
+    {
+        return m_render_manager;
     }
 
     void Window::run()

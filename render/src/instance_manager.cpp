@@ -103,19 +103,19 @@ namespace engine
 
         switch ((vk::DebugUtilsMessageSeverityFlagBitsEXT)severity) {
         case vk::DebugUtilsMessageSeverityFlagBitsEXT::eVerbose:
-            p_vim->m_logger->info("Vulkan Debug Utils (Verbose/{}): {}\n{}", message_type, p_data->pMessageIdName,
+            p_vim->logger->info("Vulkan Debug Utils (Verbose/{}): {}\n{}", message_type, p_data->pMessageIdName,
                                   p_data->pMessage);
             break;
         case vk::DebugUtilsMessageSeverityFlagBitsEXT::eInfo:
-            p_vim->m_logger->trace("Vulkan Debug Utils (Info/{}): {}\n{}", message_type, p_data->pMessageIdName,
+            p_vim->logger->trace("Vulkan Debug Utils (Info/{}): {}\n{}", message_type, p_data->pMessageIdName,
                                    p_data->pMessage);
             break;
         case vk::DebugUtilsMessageSeverityFlagBitsEXT::eWarning:
-            p_vim->m_logger->warn("Vulkan Debug Utils (Warning/{}): {}\n{}", message_type, p_data->pMessageIdName,
+            p_vim->logger->warn("Vulkan Debug Utils (Warning/{}): {}\n{}", message_type, p_data->pMessageIdName,
                                   p_data->pMessage);
             break;
         case vk::DebugUtilsMessageSeverityFlagBitsEXT::eError:
-            p_vim->m_logger->error("Vulkan Debug Utils (Error/{}): {}\n{}", message_type, p_data->pMessageIdName,
+            p_vim->logger->error("Vulkan Debug Utils (Error/{}): {}\n{}", message_type, p_data->pMessageIdName,
                                    p_data->pMessage);
             break;
         }
@@ -129,21 +129,21 @@ namespace engine
 
     span<const vk::PhysicalDevice> VulkanInstanceManager::get_available_physical_devices() const
     {
-        if (!m_instance)
+        if (!instance)
             throw Exception("Not initialized");
 
-        return m_available_devices;
+        return available_devices;
     }
 
     std::span<const vk::PhysicalDevice> VulkanInstanceManager::get_supported_rendering_devices() const
     {
-        if (!m_instance)
+        if (!instance)
             throw Exception("Not initialized");
-        return m_supported_rendering_devices;
+        return supported_rendering_devices;
     }
 
     VulkanInstanceManager::VulkanInstanceManager(string_view app_name, Version app_version)
-        : m_logger(get_logger())
+        : logger(get_logger())
     {
 
         if (!glfwInit())
@@ -151,7 +151,7 @@ namespace engine
         if (!glfwVulkanSupported())
             throw VulkanException((uint32_t)vk::Result::eErrorUnknown, "Vulkan is not supported on this device");
 
-        m_dispatch.init();
+        dispatch.init();
 
         vector<const char *> extensions = {};
         vector<const char *> layers     = {};
@@ -162,7 +162,7 @@ namespace engine
             layers.push_back("VK_LAYER_KHRONOS_validation");
             extensions.push_back(vk::EXTDebugUtilsExtensionName);
 
-            m_logger->info("Debug assertions are enabled - loading debug utilities...");
+            logger->info("Debug assertions are enabled - loading debug utilities...");
         }
 
         auto unavailable_extensions = get_unavailable_instance_extensions(extensions);
@@ -197,20 +197,20 @@ namespace engine
             .ppEnabledExtensionNames = extensions.data(),
         };
 
-        m_instance = vk::createInstance(instance_create_info, nullptr, m_dispatch);
+        instance = vk::createInstance(instance_create_info, nullptr, dispatch);
 
-        m_logger->info("Created Vulkan Instance");
+        logger->info("Created Vulkan Instance");
 
-        m_dispatch.init(m_instance);
+        dispatch.init(instance);
 
         if constexpr (DEBUG_ASSERTIONS) {
-            m_messenger = m_instance.createDebugUtilsMessengerEXT(messenger_create_info, nullptr, m_dispatch);
+            messenger = instance.createDebugUtilsMessengerEXT(messenger_create_info, nullptr, dispatch);
 
-            m_logger->info("Created debug utils messenger");
+            logger->info("Created debug utils messenger");
         }
 
         {
-            auto available_devices = m_instance.enumeratePhysicalDevices();
+            auto available_devices = instance.enumeratePhysicalDevices();
 
             span<const char *> required_device_extensions = RenderDeviceManager::get_required_device_extensions();
             vector<vk::PhysicalDevice> supported_devices  = {};
@@ -236,24 +236,24 @@ namespace engine
                     supported_devices.push_back(device);
             }
 
-            m_available_devices           = std::move(available_devices);
-            m_supported_rendering_devices = std::move(supported_devices);
+            available_devices           = std::move(available_devices);
+            supported_rendering_devices = std::move(supported_devices);
         }
     }
 
     VulkanInstanceManager::~VulkanInstanceManager()
     {
-        if (m_messenger)
-            m_instance.destroyDebugUtilsMessengerEXT(m_messenger, nullptr, m_dispatch);
+        if (messenger)
+            instance.destroyDebugUtilsMessengerEXT(messenger, nullptr, dispatch);
 
-        if (m_instance)
-            m_instance.destroy();
+        if (instance)
+            instance.destroy();
 
-        m_logger->info("Cleaned up Vulkan instance manager");
+        logger->info("Cleaned up Vulkan instance manager");
 
-        m_available_devices.clear();
-        m_supported_rendering_devices.clear();
-        m_messenger = nullptr;
-        m_instance  = nullptr;
+        available_devices.clear();
+        supported_rendering_devices.clear();
+        messenger = nullptr;
+        instance  = nullptr;
     }
 } // namespace engine

@@ -3,6 +3,7 @@
   "builtin-baseline": "f0c8848cde589649bca3ab3649668540403786ce",
   "dependencies": [
     "vulkan",
+    "vulkan-memory-allocator",
     "glfw3",
     "glm",
     {

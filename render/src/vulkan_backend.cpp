@@ -1,4 +1,5 @@
-#include "render_manager.hpp"
+#include "vulkan_backend.hpp"
+
 #include "device_manager.hpp"
 #include "exceptions.hpp"
 #include "instance_manager.hpp"
@@ -252,16 +253,16 @@ namespace engine
         return format_count > 0 && mode_count > 0;
     }
 
-    RenderManager::RenderManager(string_view application_name, Version application_version, GLFWwindow *window)
+    VulkanBackend::VulkanBackend(string_view application_name, Version application_version, GLFWwindow *window)
         : m_logger(get_logger())
         , m_window(window)
     {
         m_instance_manager = VulkanInstanceManager::new_shared(application_name, application_version);
 
         auto devices = get_properties(m_instance_manager->get_supported_rendering_devices());
-        list_devices(m_instance_manager->m_logger, devices);
+        list_devices(m_instance_manager->logger, devices);
 
-        m_surface = create_surface(m_instance_manager->m_instance, window);
+        m_surface = create_surface(m_instance_manager->instance, window);
         m_logger->info("Created surface");
 
         auto device = select_physical_device(devices, m_surface);
@@ -269,16 +270,16 @@ namespace engine
             throw Exception("No supported devices available");
 
         m_device_manager = RenderDeviceManager::new_shared(m_instance_manager, device);
-        m_device         = m_device_manager->m_device;
-        m_graphics_queue = m_device_manager->m_graphics_queue.handle;
-        m_present_queue  = m_device_manager->m_present_queue.handle;
+        m_device         = m_device_manager->device;
+        m_graphics_queue = m_device_manager->graphics_queue.handle;
+        m_present_queue  = m_device_manager->present_queue.handle;
 
         glfwSetFramebufferSizeCallback(m_window, handle_framebuffer_resize);
 
         create_pipeline();
     }
 
-    RenderManager::RenderManager(const RenderManager &other, GLFWwindow *window)
+    VulkanBackend::VulkanBackend(const VulkanBackend &other, GLFWwindow *window)
         : m_logger(other.m_logger)
         , m_window(window)
         , m_instance_manager(other.m_instance_manager)
@@ -287,10 +288,10 @@ namespace engine
         , m_graphics_queue(other.m_graphics_queue)
         , m_present_queue(other.m_present_queue)
     {
-        m_surface = create_surface(m_instance_manager->m_instance, window);
+        m_surface = create_surface(m_instance_manager->instance, window);
         m_logger->info("Created surface");
 
-        if (!SwapchainSupportDetails::supported(m_device_manager->m_physical_device, m_surface))
+        if (!SwapchainSupportDetails::supported(m_device_manager->physical_device, m_surface))
             throw Exception("The device passed does not support this surface");
 
         glfwSetFramebufferSizeCallback(m_window, handle_framebuffer_resize);
@@ -298,9 +299,17 @@ namespace engine
         create_pipeline();
     }
 
-    RenderManager::~RenderManager()
+    VulkanBackend::~VulkanBackend()
     {
         destroy_swapchain();
+
+        m_staging_buffer.deinit(m_device, m_command_pool, m_allocator);
+
+        for (auto vba : m_loaded_meshes)
+            vba->destroy();
+
+        if (m_allocator)
+            vmaDestroyAllocator(m_allocator);
 
         for (auto &sync : m_sync)
             sync.destroy(m_device);
@@ -326,12 +335,14 @@ namespace engine
             m_device.destroySwapchainKHR(m_swapchain);
 
         if (m_surface)
-            m_instance_manager->m_instance.destroySurfaceKHR(m_surface);
+            m_instance_manager->instance.destroySurfaceKHR(m_surface);
 
         m_logger->info("Destroyed render manager");
 
+        m_loaded_meshes.clear();
         m_command_buffers.clear();
         m_sync.clear();
+
         m_command_pool     = nullptr;
         m_pipeline         = nullptr;
         m_pipeline_layout  = nullptr;
@@ -346,18 +357,18 @@ namespace engine
         m_instance_manager = nullptr;
     }
 
-    RenderManager::Shared RenderManager::new_shared(string_view application_name, Version application_version,
+    VulkanBackend::Shared VulkanBackend::new_shared(string_view application_name, Version application_version,
                                                     GLFWwindow *window)
     {
-        return Shared(new RenderManager(application_name, application_version, window));
+        return Shared(new VulkanBackend(application_name, application_version, window));
     }
 
-    RenderManager::Shared RenderManager::new_shared(const Shared &other, GLFWwindow *window)
+    VulkanBackend::Shared VulkanBackend::new_shared(const Shared &other, GLFWwindow *window)
     {
-        return Shared(new RenderManager(*other, window));
+        return Shared(new VulkanBackend(*other, window));
     }
 
-    void RenderManager::render_frame()
+    void VulkanBackend::render_frame()
     {
         constexpr uint64_t TIMEOUT = std::numeric_limits<uint64_t>::max();
 
@@ -424,12 +435,12 @@ namespace engine
         m_frame_index = ++m_frame_index % IN_FLIGHT;
     }
 
-    void RenderManager::wait_idle()
+    void VulkanBackend::wait_idle()
     {
         m_device.waitIdle();
     }
 
-    RenderManager::RenderManager(RenderManager &&other) noexcept
+    VulkanBackend::VulkanBackend(VulkanBackend &&other) noexcept
         : m_logger(move(other.m_logger))
         , m_instance_manager(move(other.m_instance_manager))
         , m_device_manager(move(other.m_device_manager))
@@ -449,9 +460,12 @@ namespace engine
         , m_swapchain_config(move(other.m_swapchain_config))
         , m_vertex_shader(move(other.m_vertex_shader))
         , m_fragment_shader(move(other.m_fragment_shader))
+        , m_allocator(move(other.m_allocator))
+        , m_staging_buffer(move(other.m_staging_buffer))
+        , m_loaded_meshes(move(other.m_loaded_meshes))
     { }
 
-    RenderManager &RenderManager::operator=(RenderManager &&other) noexcept
+    VulkanBackend &VulkanBackend::operator=(VulkanBackend &&other) noexcept
     {
         swap(m_logger, other.m_logger);
         swap(m_instance_manager, other.m_instance_manager);
@@ -472,6 +486,10 @@ namespace engine
         swap(m_command_buffers, other.m_command_buffers);
         swap(m_sync, other.m_sync);
 
+        swap(m_allocator, other.m_allocator);
+        swap(m_staging_buffer, other.m_staging_buffer);
+        swap(m_loaded_meshes, other.m_loaded_meshes);
+
         swap(m_swapchain_config, other.m_swapchain_config);
         swap(m_vertex_shader, other.m_vertex_shader);
         swap(m_fragment_shader, other.m_fragment_shader);
@@ -479,14 +497,14 @@ namespace engine
         return *this;
     }
 
-    void RenderManager::handle_framebuffer_resize(GLFWwindow *window, int width, int height)
+    void VulkanBackend::handle_framebuffer_resize(GLFWwindow *window, int width, int height)
     {
         Window *w = (Window *)glfwGetWindowUserPointer(window);
 
         w->m_render_manager->m_framebuffer_resized = true;
     }
 
-    void RenderManager::create_render_pass()
+    void VulkanBackend::create_render_pass()
     {
         vk::AttachmentDescription color_attachment = {
             .format         = m_swapchain_config.format,
@@ -532,7 +550,7 @@ namespace engine
         m_logger->info("Created render pass");
     }
 
-    void RenderManager::create_pipeline()
+    void VulkanBackend::create_pipeline()
     {
         create_swapchain();
         get_images();
@@ -543,11 +561,12 @@ namespace engine
         create_command_pool();
         allocate_command_buffers();
         create_sync_primitives();
+        initialize_device_memory_allocator();
 
         m_valid_framebuffer = m_swapchain_config.extent.width != 0 && m_swapchain_config.extent.height != 0;
     }
 
-    void RenderManager::destroy_swapchain()
+    void VulkanBackend::destroy_swapchain()
     {
         wait_idle();
 
@@ -564,7 +583,7 @@ namespace engine
         m_logger->info("Destroyed swapchain");
     }
 
-    bool RenderManager::recreate_swapchain()
+    bool VulkanBackend::recreate_swapchain()
     {
         if (m_valid_framebuffer)
             destroy_swapchain();
@@ -583,9 +602,9 @@ namespace engine
         return true;
     }
 
-    void RenderManager::create_swapchain()
+    void VulkanBackend::create_swapchain()
     {
-        auto swapchain_support_details = SwapchainSupportDetails::query(m_device_manager->m_physical_device, m_surface);
+        auto swapchain_support_details = SwapchainSupportDetails::query(m_device_manager->physical_device, m_surface);
 
         auto format                     = select_format(swapchain_support_details.formats);
         m_swapchain_config.format       = format.format;
@@ -600,8 +619,7 @@ namespace engine
 
         m_swapchain_config.image_layers = 1;
 
-        uint32_t queue_families[2] = {m_device_manager->m_graphics_queue.index,
-                                      m_device_manager->m_present_queue.index};
+        uint32_t queue_families[2] = {m_device_manager->graphics_queue.index, m_device_manager->present_queue.index};
 
         bool same_queues = queue_families[0] == queue_families[1];
 
@@ -627,10 +645,10 @@ namespace engine
         m_logger->info("Created swapchain");
     }
 
-    void RenderManager::load_shaders()
+    void VulkanBackend::load_shaders()
     {
         m_vertex_shader   = create_shader_module(m_device, vertex_shader);
-        m_fragment_shader = create_shader_module(m_device, fragment_shader)
+        m_fragment_shader = create_shader_module(m_device, fragment_shader);
     }
 
     static vector<vk::ImageView> create_image_views(vk::Device device, span<vk::Image> images, vk::Format format,
@@ -661,7 +679,7 @@ namespace engine
         return image_views;
     }
 
-    void RenderManager::get_images()
+    void VulkanBackend::get_images()
     {
         m_images = m_device.getSwapchainImagesKHR(m_swapchain);
 
@@ -671,7 +689,7 @@ namespace engine
         m_logger->info("Created {} image views", m_image_views.size());
     }
 
-    void RenderManager::create_render_pipeline()
+    void VulkanBackend::create_render_pipeline()
     {
         vk::PipelineLayoutCreateInfo pipeline_layout_create_info = {
             .setLayoutCount         = 0,
@@ -766,7 +784,7 @@ namespace engine
         }
     }
 
-    void RenderManager::create_framebuffers()
+    void VulkanBackend::create_framebuffers()
     {
         m_framebuffers.resize(m_images.size());
 
@@ -790,17 +808,17 @@ namespace engine
         m_logger->info("Created framebuffers");
     }
 
-    void RenderManager::create_command_pool()
+    void VulkanBackend::create_command_pool()
     {
         vk::CommandPoolCreateInfo create_info = {
             .flags            = vk::CommandPoolCreateFlagBits::eResetCommandBuffer,
-            .queueFamilyIndex = m_device_manager->m_graphics_queue.index,
+            .queueFamilyIndex = m_device_manager->graphics_queue.index,
         };
 
         m_command_pool = m_device.createCommandPool(create_info);
     }
 
-    void RenderManager::allocate_command_buffers()
+    void VulkanBackend::allocate_command_buffers()
     {
         vk::CommandBufferAllocateInfo allocate_info = {
             .commandPool        = m_command_pool,
@@ -812,14 +830,41 @@ namespace engine
         m_logger->info("Allocated {} command buffers", m_command_buffers.size());
     }
 
-    void RenderManager::create_sync_primitives()
+    void VulkanBackend::create_sync_primitives()
     {
         m_sync.resize(IN_FLIGHT);
         for (auto &sync : m_sync)
             sync.init(m_device);
     }
 
-    void RenderManager::record_command_buffer(vk::CommandBuffer buffer, uint32_t image_index)
+    void VulkanBackend::initialize_device_memory_allocator()
+    {
+        VmaAllocatorCreateInfo alloc_ci = {
+            .flags            = 0,
+            .physicalDevice   = m_device_manager->physical_device,
+            .device           = m_device_manager->device,
+            .pVulkanFunctions = nullptr,
+            .instance         = m_instance_manager->instance,
+            .vulkanApiVersion = vk::ApiVersion13,
+        };
+
+        if (VkResult result = vmaCreateAllocator(&alloc_ci, &m_allocator))
+            throw VulkanException(result, "Failed to create device allocator");
+
+        vk::CommandBufferAllocateInfo cba_info {
+            .commandPool        = m_command_pool,
+            .level              = vk::CommandBufferLevel::ePrimary,
+            .commandBufferCount = 1,
+        };
+
+        vk::CommandBuffer cmd = m_device.allocateCommandBuffers(cba_info)[0];
+
+        vk::Fence fence = m_device.createFence(vk::FenceCreateInfo {.flags = vk::FenceCreateFlagBits::eSignaled});
+
+        m_staging_buffer.init(m_allocator, cmd, fence);
+    }
+
+    void VulkanBackend::record_command_buffer(vk::CommandBuffer buffer, uint32_t image_index)
     {
         vk::CommandBufferBeginInfo buffer_begin = {
             .flags            = {},
@@ -856,7 +901,12 @@ namespace engine
         buffer.bindPipeline(vk::PipelineBindPoint::eGraphics, m_pipeline);
         buffer.setViewport(0, viewport);
         buffer.setScissor(0, scissor);
-        buffer.draw(3, 1, 0, 0);
+
+        for (auto &vba : m_loaded_meshes) {
+            buffer.bindVertexBuffers(0, vba->buffer, vba->offset);
+            buffer.draw(vba->vertex_count, 1, 0, 0);
+        }
+
         buffer.endRenderPass();
         buffer.end();
     }
@@ -889,5 +939,163 @@ namespace engine
         image_available = nullptr;
         render_finished = nullptr;
         in_flight       = nullptr;
+    }
+
+    RenderBackend::MeshHandlePtr VulkanBackend::load(std::span<primitives::Vertex> vertices)
+    {
+        vk::BufferCreateInfo bci = {
+            .size  = vertices.size_bytes(),
+            .usage = vk::BufferUsageFlagBits::eVertexBuffer | vk::BufferUsageFlagBits::eTransferDst,
+        };
+
+        VmaAllocationCreateInfo vma_alloc = {
+            .usage = VMA_MEMORY_USAGE_AUTO,
+        };
+
+        vk::Buffer    buf;
+        VmaAllocation alloc;
+
+        if (VkResult result =
+                vmaCreateBuffer(m_allocator, (VkBufferCreateInfo *)&bci, &vma_alloc, (VkBuffer *)&buf, &alloc, nullptr))
+            throw VulkanException(result, "Failed to allocate buffer");
+
+        m_staging_buffer.wait(m_device);
+        m_staging_buffer.reset(m_device);
+        memcpy(m_staging_buffer, vertices.data(), vertices.size_bytes());
+        m_staging_buffer.flush(m_allocator, 0, vertices.size_bytes());
+        m_staging_buffer.transfer(buf, m_graphics_queue, 0, 0, vertices.size_bytes());
+        m_staging_buffer.wait(m_device);
+
+        VertexBufferAllocation *vba = new VertexBufferAllocation(
+            this, alloc, buf, 0, (vk::DeviceSize)vertices.size_bytes(), (uint32_t)vertices.size());
+
+        m_loaded_meshes.push_front(vba);
+
+        return MeshHandlePtr(vba);
+    }
+
+    VulkanBackend::VertexBufferAllocation::VertexBufferAllocation(VulkanBackend *backend, VmaAllocation alloc,
+                                                                  vk::Buffer buffer, vk::DeviceSize offset,
+                                                                  vk::DeviceSize size, uint32_t vertices)
+        : backend(backend)
+        , alloc(alloc)
+        , buffer(buffer)
+        , offset(offset)
+        , size(size)
+        , vertex_count(vertices)
+        , is_visible(true)
+    { }
+
+    void VulkanBackend::VertexBufferAllocation::destroy(bool destructor)
+    {
+        if (buffer)
+            vmaDestroyBuffer(backend->m_allocator, buffer, alloc);
+
+        if (destructor)
+            backend->m_loaded_meshes.remove(this);
+
+        buffer       = nullptr;
+        alloc        = nullptr;
+        backend      = nullptr;
+        vertex_count = 0;
+        size         = 0;
+        offset       = 0;
+    }
+
+    VulkanBackend::VertexBufferAllocation::~VertexBufferAllocation()
+    {
+        if (buffer)
+            destroy(true);
+    }
+
+    void VulkanBackend::VertexBufferAllocation::visible(bool value)
+    {
+        is_visible = value;
+    }
+
+    bool VulkanBackend::VertexBufferAllocation::visible() const
+    {
+        return is_visible;
+    }
+
+    VulkanBackend::StagingBuffer::operator void *()
+    {
+        return p_mapping;
+    }
+
+    void VulkanBackend::StagingBuffer::init(VmaAllocator allocator, vk::CommandBuffer cmd, vk::Fence fence)
+    {
+        vk::BufferCreateInfo bufc = {
+            .size  = SIZE,
+            .usage = vk::BufferUsageFlagBits::eTransferSrc,
+        };
+
+        VmaAllocationCreateInfo vma_alloc = {
+            .flags          = VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT | VMA_ALLOCATION_CREATE_MAPPED_BIT,
+            .usage          = VMA_MEMORY_USAGE_AUTO,
+            .preferredFlags = VkMemoryPropertyFlags(vk::MemoryPropertyFlagBits::eHostCoherent),
+        };
+
+        VmaAllocationInfo alloc_info;
+
+        if (vmaCreateBuffer(allocator, (VkBufferCreateInfo *)&bufc, &vma_alloc, (VkBuffer *)&buffer, &alloc,
+                            &alloc_info)) {
+            vma_alloc.preferredFlags = 0;
+            if (VkResult result = vmaCreateBuffer(allocator, (VkBufferCreateInfo *)&bufc, &vma_alloc,
+                                                  (VkBuffer *)&buffer, &alloc, &alloc_info))
+                throw VulkanException(result, "Failed to create staging buffer");
+
+            is_coherent = false;
+        } else
+            is_coherent = true;
+
+        p_mapping      = alloc_info.pMappedData;
+        this->cmd      = cmd;
+        transfer_fence = fence;
+    }
+
+    void VulkanBackend::StagingBuffer::flush(VmaAllocator allocator, vk::DeviceSize offset, vk::DeviceSize length)
+    {
+        if (!is_coherent)
+            vmaFlushAllocation(allocator, alloc, offset, length);
+    }
+
+    void VulkanBackend::StagingBuffer::transfer(vk::Buffer dst, vk::Queue queue, uint32_t src_offset,
+                                                uint32_t dst_offset, uint32_t size)
+    {
+        cmd.reset();
+        cmd.begin(vk::CommandBufferBeginInfo {});
+        cmd.copyBuffer(buffer, dst, vk::BufferCopy {.srcOffset = src_offset, .dstOffset = dst_offset, .size = size});
+        cmd.end();
+
+        queue.submit(vk::SubmitInfo {.commandBufferCount = 1, .pCommandBuffers = &cmd}, transfer_fence);
+    }
+
+    void VulkanBackend::StagingBuffer::reset(vk::Device device)
+    {
+        device.resetFences(transfer_fence);
+    }
+
+    void VulkanBackend::StagingBuffer::wait(vk::Device device)
+    {
+        vk::Result result = device.waitForFences(transfer_fence, true, std::numeric_limits<uint64_t>::max());
+        if (result != vk::Result::eSuccess)
+            throw VulkanException((uint32_t)result, "Failed to wait on transfer fence");
+    }
+
+    void VulkanBackend::StagingBuffer::deinit(vk::Device device, vk::CommandPool cmd_pool, VmaAllocator allocator)
+    {
+        if (!buffer)
+            return;
+
+        device.destroyFence(transfer_fence);
+        device.freeCommandBuffers(cmd_pool, cmd);
+        vmaDestroyBuffer(allocator, buffer, alloc);
+        transfer_fence = nullptr;
+        cmd            = nullptr;
+        buffer         = nullptr;
+        alloc          = nullptr;
+        is_coherent    = false;
+        p_mapping      = nullptr;
     }
 } // namespace engine

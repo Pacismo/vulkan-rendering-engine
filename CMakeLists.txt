@@ -10,6 +10,7 @@ set(GRT_ENGINE_NAME "Game Runtime")
 add_compile_definitions(DEBUG_ASSERTIONS=${DEBUG})
 
 find_package(Vulkan REQUIRED)
+find_package(VulkanMemoryAllocator CONFIG REQUIRED)
 find_package(glfw3 CONFIG REQUIRED)
 find_package(glm CONFIG REQUIRED)
 find_package(imgui CONFIG REQUIRED)

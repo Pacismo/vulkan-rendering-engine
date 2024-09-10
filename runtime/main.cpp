@@ -8,7 +8,9 @@
 #include <window.hpp>
 
 using std::shared_ptr, std::initializer_list, engine::Window, std::string_view, std::array, engine::primitives::Vertex;
+using MeshHandle = engine::RenderBackend::MeshHandlePtr;
 
+// TODO: load into a framebuffer and render it
 const array<Vertex, 3> VERTICES = {
     Vertex {.position = {0.0, -0.5}, .color = {1.0, 0.0, 0.0}},
     Vertex { .position = {0.5, 0.5}, .color = {0.0, 1.0, 0.0}},
@@ -17,10 +19,18 @@ const array<Vertex, 3> VERTICES = {
 
 class ExampleWindow : public Window
 {
+    MeshHandle triangle;
+
   public:
     ExampleWindow(string_view title, int width, int height)
         : Window(title, width, height, "Runtime", {0, 1, 0})
-    { }
+    {
+        auto rb = get_render_backend();
+
+        auto vertices = VERTICES;
+
+        triangle = rb->load(vertices);
+    }
 
     void process() override { }
 };

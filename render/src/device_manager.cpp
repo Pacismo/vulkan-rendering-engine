@@ -47,14 +47,14 @@ namespace engine
     };
 
     RenderDeviceManager::RenderDeviceManager(SharedInstanceManager instance_manager, vk::PhysicalDevice physical_device)
-        : m_logger(instance_manager->m_logger)
-        , m_instance_manager(std::move(instance_manager))
-        , m_dispatch(m_instance_manager->m_dispatch)
-        , m_physical_device(physical_device)
+        : logger(instance_manager->logger)
+        , instance_manager(instance_manager)
+        , dispatch(instance_manager->dispatch)
+        , physical_device(physical_device)
     {
         // Make sure that the device passed is available.
         if constexpr (DEBUG_ASSERTIONS) {
-            auto devices = m_instance_manager->get_supported_rendering_devices();
+            auto devices = instance_manager->get_supported_rendering_devices();
 
             auto idx = std::find(devices.begin(), devices.end(), physical_device);
             if (idx == devices.end())
@@ -62,10 +62,10 @@ namespace engine
                                 "or is not available");
         }
 
-        m_logger->info("Creating render device using {}", physical_device.getProperties().deviceName.data());
+        logger->info("Creating render device using {}", physical_device.getProperties().deviceName.data());
 
         auto [graphics_queue_index, present_queue_index] =
-            get_gp_queue_indices(m_instance_manager->m_instance, physical_device);
+            get_gp_queue_indices(instance_manager->instance, physical_device);
 
         if (!graphics_queue_index.has_value())
             throw VulkanException((uint32_t)vk::Result::eErrorUnknown, "Could not find a graphics queue");
@@ -100,37 +100,37 @@ namespace engine
                 .pEnabledFeatures        = &features,
             };
 
-            m_device = m_physical_device.createDevice(dci);
-            m_logger->info("Created device");
+            device = physical_device.createDevice(dci);
+            logger->info("Created device");
         }
 
-        m_graphics_queue = Queue {
+        graphics_queue = Queue {
             .index  = graphics_queue_index.value(),
-            .handle = m_device.getQueue(graphics_queue_index.value(), 0),
+            .handle = device.getQueue(graphics_queue_index.value(), 0),
         };
-        m_present_queue = Queue {
+        present_queue = Queue {
             .index  = present_queue_index.value(),
-            .handle = m_device.getQueue(present_queue_index.value(), 0),
+            .handle = device.getQueue(present_queue_index.value(), 0),
         };
 
-        m_logger->info("Selected queue family {} for graphics queue ({:8X})", m_graphics_queue.index,
-                       (size_t)(VkQueue)m_graphics_queue.handle);
-        m_logger->info("Selected queue family {} for present queue ({:8X})", m_present_queue.index,
-                       (size_t)(VkQueue)m_present_queue.handle);
+        logger->info("Selected queue family {} for graphics queue ({:8X})", graphics_queue.index,
+                       (size_t)(VkQueue)graphics_queue.handle);
+        logger->info("Selected queue family {} for present queue ({:8X})", present_queue.index,
+                       (size_t)(VkQueue)present_queue.handle);
     }
 
     RenderDeviceManager::~RenderDeviceManager()
     {
-        if (m_device)
-            m_device.destroy();
-        m_logger->info("Destroyed device");
+        if (device)
+            device.destroy();
+        logger->info("Destroyed device");
 
-        m_graphics_queue  = {};
-        m_present_queue   = {};
-        m_device          = nullptr;
-        m_physical_device = nullptr;
+        graphics_queue  = {};
+        present_queue   = {};
+        device          = nullptr;
+        physical_device = nullptr;
 
-        m_instance_manager = nullptr;
+        instance_manager = nullptr;
     }
 
     span<const char *> RenderDeviceManager::get_required_device_extensions()
