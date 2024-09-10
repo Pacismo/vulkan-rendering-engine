@@ -974,9 +974,12 @@ namespace engine
         m_staging_buffer.transfer(buf, m_graphics_queue, 0, 0, total_bytes);
         m_staging_buffer.wait(m_device);
 
-        return MeshHandlePtr(new VertexBufferAllocation(this, alloc, buf, 0, vertices.size_bytes(),
-                                                        (vk::DeviceSize)vertices.size_bytes(),
-                                                        (uint32_t)indices.size()));
+        auto vba = new VertexBufferAllocation(this, alloc, buf, 0, vertices.size_bytes(),
+                                              (vk::DeviceSize)vertices.size_bytes(), (uint32_t)indices.size());
+
+        m_draw_queue.push_front(vba);
+
+        return MeshHandlePtr(vba);
     }
 
     VulkanBackend::VertexBufferAllocation::VertexBufferAllocation(VulkanBackend *backend, VmaAllocation alloc,
