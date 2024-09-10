@@ -26,7 +26,6 @@ class ExampleWindow : public Window
 {
     MeshHandle triangle;
     double     next_draw;
-    bool       queue = false;
 
   public:
     ExampleWindow(string_view title, int width, int height)
@@ -41,17 +40,13 @@ class ExampleWindow : public Window
         next_draw = 2.0;
     }
 
-    void process(double delta) override
-    {
-        if (queue) {
-            triangle->queue_draw();
-        }
-    }
+    void process(double delta) override {  }
 
-    void physics_process(double delta) override {
+    void physics_process(double delta) override
+    {
         next_draw -= delta;
         if (next_draw <= 0.0) {
-            queue = !queue;
+            triangle->visible(!triangle->visible());
             next_draw = 2.0;
         }
     }
