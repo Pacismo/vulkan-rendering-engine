@@ -11,11 +11,14 @@ using std::shared_ptr, std::initializer_list, engine::Window, std::string_view, 
 using MeshHandle = engine::RenderBackend::MeshHandlePtr;
 
 // TODO: load into a framebuffer and render it
-const array<Vertex, 3> VERTICES = {
-    Vertex {.position = {0.0, -0.5}, .color = {1.0, 0.0, 0.0}},
-    Vertex { .position = {0.5, 0.5}, .color = {0.0, 1.0, 0.0}},
-    Vertex {.position = {-0.5, 0.5}, .color = {0.0, 0.0, 1.0}},
+const array<Vertex, 4> VERTICES = {
+    Vertex {.position = {-0.5, -0.5}, .color = {1.0, 0.0, 0.0}},
+    Vertex {.position = {0.5, -0.5}, .color = {0.0, 1.0, 0.0}},
+    Vertex {.position = {0.5, 0.5}, .color = {0.0, 0.0, 1.0}},
+    Vertex {.position = {-0.5, 0.5}, .color = {1.0, 1.0, 1.0}},
 };
+
+const array<uint32_t, 6> INDICES = {0, 1, 2, 2, 3, 0};
 
 class ExampleWindow : public Window
 {
@@ -28,8 +31,9 @@ class ExampleWindow : public Window
         auto rb = get_render_backend();
 
         auto vertices = VERTICES;
+        auto indices  = INDICES;
 
-        triangle = rb->load(vertices);
+        triangle = rb->load(vertices, indices);
     }
 
     void process() override { }

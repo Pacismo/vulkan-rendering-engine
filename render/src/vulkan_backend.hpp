@@ -63,14 +63,16 @@ namespace engine
             VulkanBackend *backend;
             VmaAllocation  alloc;
             vk::Buffer     buffer;
-            vk::DeviceSize offset;
+            vk::DeviceSize vtx_offset;
+            vk::DeviceSize idx_offset;
             vk::DeviceSize size;
-            uint32_t       vertex_count;
+            uint32_t       count;
 
             bool is_visible;
 
             VertexBufferAllocation(VulkanBackend *backend, VmaAllocation alloc, vk::Buffer buffer,
-                                   vk::DeviceSize offset, vk::DeviceSize size, uint32_t vertices);
+                                   vk::DeviceSize vtx_offset, vk::DeviceSize idx_offset, vk::DeviceSize size,
+                                   uint32_t indices);
             void destroy(bool destructor = false);
             ~VertexBufferAllocation() override;
 
@@ -89,7 +91,7 @@ namespace engine
             bool              is_coherent;
             void             *p_mapping;
 
-            operator void *();
+            operator uint8_t *();
 
             void init(VmaAllocator allocator, vk::CommandBuffer cmd, vk::Fence fence);
             void flush(VmaAllocator allocator, vk::DeviceSize offset = 0, vk::DeviceSize length = SIZE);
@@ -100,7 +102,7 @@ namespace engine
         };
 
       public:
-        MeshHandlePtr load(std::span<primitives::Vertex> vertices) override;
+        MeshHandlePtr load(std::span<primitives::Vertex> vertices, std::span<uint32_t> indices) override;
 
         VulkanBackend(std::string_view application_name, Version application_version, GLFWwindow *window);
         VulkanBackend(const VulkanBackend &other, GLFWwindow *window);

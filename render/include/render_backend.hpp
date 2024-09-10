@@ -20,7 +20,7 @@ namespace engine
       public:
         using MeshHandlePtr = std::shared_ptr<RenderBackend::MeshHandle>;
 
-        virtual MeshHandlePtr load(std::span<primitives::Vertex> vertices) = 0;
+        virtual MeshHandlePtr load(std::span<primitives::Vertex> vertices, std::span<uint32_t> indices) = 0;
 
       protected:
         RenderBackend()          = default;

@@ -903,8 +903,9 @@ namespace engine
         buffer.setScissor(0, scissor);
 
         for (auto &vba : m_loaded_meshes) {
-            buffer.bindVertexBuffers(0, vba->buffer, vba->offset);
-            buffer.draw(vba->vertex_count, 1, 0, 0);
+            buffer.bindVertexBuffers(0, vba->buffer, vba->vtx_offset);
+            buffer.bindIndexBuffer(vba->buffer, vba->idx_offset, vk::IndexType::eUint32);
+            buffer.drawIndexed(vba->count, 1, 0, 0, 0);
         }
 
         buffer.endRenderPass();
@@ -941,11 +942,12 @@ namespace engine
         in_flight       = nullptr;
     }
 
-    RenderBackend::MeshHandlePtr VulkanBackend::load(std::span<primitives::Vertex> vertices)
+    RenderBackend::MeshHandlePtr VulkanBackend::load(span<primitives::Vertex> vertices, span<uint32_t> indices)
     {
         vk::BufferCreateInfo bci = {
-            .size  = vertices.size_bytes(),
-            .usage = vk::BufferUsageFlagBits::eVertexBuffer | vk::BufferUsageFlagBits::eTransferDst,
+            .size  = vertices.size_bytes() + indices.size_bytes(),
+            .usage = vk::BufferUsageFlagBits::eVertexBuffer | vk::BufferUsageFlagBits::eIndexBuffer
+                   | vk::BufferUsageFlagBits::eTransferDst,
         };
 
         VmaAllocationCreateInfo vma_alloc = {
@@ -959,15 +961,20 @@ namespace engine
                 vmaCreateBuffer(m_allocator, (VkBufferCreateInfo *)&bci, &vma_alloc, (VkBuffer *)&buf, &alloc, nullptr))
             throw VulkanException(result, "Failed to allocate buffer");
 
+        size_t total_bytes = vertices.size_bytes() + indices.size_bytes();
+
         m_staging_buffer.wait(m_device);
         m_staging_buffer.reset(m_device);
-        memcpy(m_staging_buffer, vertices.data(), vertices.size_bytes());
-        m_staging_buffer.flush(m_allocator, 0, vertices.size_bytes());
-        m_staging_buffer.transfer(buf, m_graphics_queue, 0, 0, vertices.size_bytes());
+        uint8_t *sbuf = m_staging_buffer;
+        memcpy(sbuf, vertices.data(), vertices.size_bytes());
+        memcpy(sbuf + vertices.size_bytes(), indices.data(), indices.size_bytes());
+        m_staging_buffer.flush(m_allocator, 0, total_bytes);
+        m_staging_buffer.transfer(buf, m_graphics_queue, 0, 0, total_bytes);
         m_staging_buffer.wait(m_device);
 
-        VertexBufferAllocation *vba = new VertexBufferAllocation(
-            this, alloc, buf, 0, (vk::DeviceSize)vertices.size_bytes(), (uint32_t)vertices.size());
+        VertexBufferAllocation *vba =
+            new VertexBufferAllocation(this, alloc, buf, 0, vertices.size_bytes(),
+                                       (vk::DeviceSize)vertices.size_bytes(), (uint32_t)indices.size());
 
         m_loaded_meshes.push_front(vba);
 
@@ -975,14 +982,16 @@ namespace engine
     }
 
     VulkanBackend::VertexBufferAllocation::VertexBufferAllocation(VulkanBackend *backend, VmaAllocation alloc,
-                                                                  vk::Buffer buffer, vk::DeviceSize offset,
-                                                                  vk::DeviceSize size, uint32_t vertices)
+                                                                  vk::Buffer buffer, vk::DeviceSize vtx_offset,
+                                                                  vk::DeviceSize idx_offset, vk::DeviceSize size,
+                                                                  uint32_t indices)
         : backend(backend)
         , alloc(alloc)
         , buffer(buffer)
-        , offset(offset)
+        , vtx_offset(vtx_offset)
+        , idx_offset(idx_offset)
         , size(size)
-        , vertex_count(vertices)
+        , count(indices)
         , is_visible(true)
     { }
 
@@ -994,12 +1003,13 @@ namespace engine
         if (destructor)
             backend->m_loaded_meshes.remove(this);
 
-        buffer       = nullptr;
-        alloc        = nullptr;
-        backend      = nullptr;
-        vertex_count = 0;
-        size         = 0;
-        offset       = 0;
+        buffer     = nullptr;
+        alloc      = nullptr;
+        backend    = nullptr;
+        count      = 0;
+        size       = 0;
+        vtx_offset = 0;
+        idx_offset = 0;
     }
 
     VulkanBackend::VertexBufferAllocation::~VertexBufferAllocation()
@@ -1018,9 +1028,9 @@ namespace engine
         return is_visible;
     }
 
-    VulkanBackend::StagingBuffer::operator void *()
+    VulkanBackend::StagingBuffer::operator uint8_t *()
     {
-        return p_mapping;
+        return (uint8_t *)p_mapping;
     }
 
     void VulkanBackend::StagingBuffer::init(VmaAllocator allocator, vk::CommandBuffer cmd, vk::Fence fence)
