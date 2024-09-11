@@ -1,14 +1,17 @@
 set(RENDER_SOURCES
-    "src/instance_manager.cpp"   "src/instance_manager.hpp"
-    "src/exceptions.cpp"         "include/exceptions.hpp"
+    "src/backend/instance_manager.cpp"   "src/backend/instance_manager.hpp"
+    "src/exceptions.cpp"                 "include/exceptions.hpp"
     "include/version.hpp"
-    "src/vk_result.cpp"          "src/vk_result.hpp"
-    "src/device_manager.cpp"     "src/device_manager.hpp"
-    "src/window.cpp"             "include/window.hpp"
-    "src/logger.cpp"             "src/logger.hpp"
-    "src/vulkan_backend.cpp"     "src/vulkan_backend.hpp"
-    "include/vertex.hpp"         "src/vertex_description.hpp"
-    "include/render_backend.hpp" "src/vma_impl.cpp")
+    "src/backend/vk_result.cpp"          "src/backend/vk_result.hpp"
+    "src/backend/device_manager.cpp"     "src/backend/device_manager.hpp"
+    "src/window.cpp"                     "include/window.hpp"
+    "src/logger.cpp"                     "src/logger.hpp"
+    "src/backend/vulkan_backend.cpp"     "src/backend/vulkan_backend.hpp"
+    "include/vertex.hpp"                 "src/backend/vertex_description.hpp"
+    "include/render_backend.hpp"         "src/backend/vma_impl.cpp"
+    "include/drawable.hpp"
+    "src/drawing_context.hpp"
+    "src/drawables/GouraudMesh.hpp")
 
 add_library(render ${RENDER_SOURCES})
 

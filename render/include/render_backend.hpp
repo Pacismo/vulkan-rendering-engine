@@ -5,6 +5,7 @@
 
 namespace engine
 {
+    /// Serves as a public interface to access functions pertaining to the rendering backend.
     class RenderBackend
     {
       protected:
@@ -20,7 +21,7 @@ namespace engine
       public:
         using MeshHandlePtr = std::shared_ptr<RenderBackend::MeshHandle>;
 
-        virtual MeshHandlePtr load(std::span<primitives::Vertex> vertices, std::span<uint32_t> indices) = 0;
+        virtual MeshHandlePtr load(std::span<primitives::GouraudVertex> vertices, std::span<uint32_t> indices) = 0;
 
       protected:
         RenderBackend()          = default;

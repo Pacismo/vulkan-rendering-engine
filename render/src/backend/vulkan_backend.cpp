@@ -1,9 +1,9 @@
 #include "vulkan_backend.hpp"
 
+#include "../logger.hpp"
 #include "device_manager.hpp"
 #include "exceptions.hpp"
 #include "instance_manager.hpp"
-#include "logger.hpp"
 #include "vertex_description.hpp"
 #include "window.hpp"
 #include <algorithm>
@@ -751,8 +751,12 @@ namespace engine
             .constants        = {0.0, 0.0, 0.0, 0.0},
         };
 
-        pipeline_config.vertex_binding_descriptions   = {primitives::VERTEX_BINDING_DESCRIPTION};
-        pipeline_config.vertex_attribute_descriptions = {primitives::VERTEX_INPUT_DESCRIPTION};
+        using primitives::GOURAUD_VERTEX;
+
+        pipeline_config.vertex_binding_descriptions =
+            vector(GOURAUD_VERTEX.bindings.begin(), GOURAUD_VERTEX.bindings.end());
+        pipeline_config.vertex_attribute_descriptions =
+            vector(GOURAUD_VERTEX.attributes.begin(), GOURAUD_VERTEX.attributes.end());
 
         auto config = PreparedPipelineConfiguration(pipeline_config);
 
@@ -944,7 +948,7 @@ namespace engine
         in_flight       = nullptr;
     }
 
-    RenderBackend::MeshHandlePtr VulkanBackend::load(span<primitives::Vertex> vertices, span<uint32_t> indices)
+    RenderBackend::MeshHandlePtr VulkanBackend::load(span<primitives::GouraudVertex> vertices, span<uint32_t> indices)
     {
         vk::BufferCreateInfo bci = {
             .size  = vertices.size_bytes() + indices.size_bytes(),

@@ -9,15 +9,15 @@
 #include <window.hpp>
 
 using namespace std::chrono_literals;
-using std::shared_ptr, std::initializer_list, engine::Window, std::string_view, std::array, engine::primitives::Vertex,
+using std::shared_ptr, std::initializer_list, engine::Window, std::string_view, std::array, engine::primitives::GouraudVertex,
     std::chrono::time_point, std::chrono::system_clock;
 using MeshHandle = engine::RenderBackend::MeshHandlePtr;
 
-const array<Vertex, 4> VERTICES = {
-    Vertex {.position = {-0.5, -0.5, 0.0}, .color = {1.0, 0.0, 0.0}},
-    Vertex { .position = {0.5, -0.5, 0.0}, .color = {0.0, 1.0, 0.0}},
-    Vertex {  .position = {0.5, 0.5, 0.0}, .color = {0.0, 0.0, 1.0}},
-    Vertex { .position = {-0.5, 0.5, 0.0}, .color = {1.0, 1.0, 1.0}},
+const array<GouraudVertex, 4> VERTICES = {
+    GouraudVertex {.position = {-0.5, -0.5, 0.0}, .color = {1.0, 0.0, 0.0}},
+    GouraudVertex { .position = {0.5, -0.5, 0.0}, .color = {0.0, 1.0, 0.0}},
+    GouraudVertex {  .position = {0.5, 0.5, 0.0}, .color = {0.0, 0.0, 1.0}},
+    GouraudVertex { .position = {-0.5, 0.5, 0.0}, .color = {1.0, 1.0, 1.0}},
 };
 
 const array<uint32_t, 6> INDICES = {0, 1, 2, 2, 3, 0};
@@ -39,8 +39,6 @@ class ExampleWindow : public Window
         triangle  = rb->load(vertices, indices);
         next_draw = 2.0;
     }
-
-    void process(double delta) override {  }
 
     void physics_process(double delta) override
     {

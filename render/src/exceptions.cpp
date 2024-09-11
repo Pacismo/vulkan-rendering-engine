@@ -1,5 +1,5 @@
 #include "exceptions.hpp"
-#include "vk_result.hpp"
+#include "backend/vk_result.hpp"
 #include <GLFW/glfw3.h>
 #include <spdlog/spdlog.h>
 #include <sstream>
@@ -7,7 +7,6 @@
 
 namespace engine
 {
-
     Exception::Exception(std::string message, std::source_location source)
         : m_message(std::move(message))
         , m_source_location(source)

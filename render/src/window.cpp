@@ -1,10 +1,10 @@
 #include <vulkan/vulkan.hpp>
 
-#include "device_manager.hpp"
+#include "backend/device_manager.hpp"
+#include "backend/instance_manager.hpp"
+#include "backend/vulkan_backend.hpp"
 #include "exceptions.hpp"
-#include "instance_manager.hpp"
 #include "logger.hpp"
-#include "vulkan_backend.hpp"
 #include "window.hpp"
 #include <algorithm>
 #include <chrono>
@@ -70,6 +70,10 @@ namespace engine
     {
         return m_render_manager;
     }
+
+    void Window::process(double delta) { }
+
+    void Window::physics_process(double delta) { }
 
     void Window::run(double pproc_freq)
     {

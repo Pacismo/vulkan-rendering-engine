@@ -28,8 +28,8 @@ namespace engine
 
         std::shared_ptr<RenderBackend> get_render_backend();
 
-        virtual void process(double delta) = 0;
-        virtual void physics_process(double delta) = 0;
+        virtual void process(double delta);
+        virtual void physics_process(double delta);
 
         void run(double pproc_freq = 20.0);
 

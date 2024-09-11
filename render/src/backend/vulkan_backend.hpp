@@ -102,7 +102,7 @@ namespace engine
         };
 
       public:
-        MeshHandlePtr load(std::span<primitives::Vertex> vertices, std::span<uint32_t> indices) override;
+        MeshHandlePtr load(std::span<primitives::GouraudVertex> vertices, std::span<uint32_t> indices) override;
 
         VulkanBackend(std::string_view application_name, Version application_version, GLFWwindow *window);
         VulkanBackend(const VulkanBackend &other, GLFWwindow *window);
