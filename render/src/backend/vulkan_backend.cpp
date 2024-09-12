@@ -314,8 +314,11 @@ namespace engine
         for (auto &sync : m_sync)
             sync.destroy(m_device);
 
-        if (m_pipeline)
-            m_device.destroyPipeline(m_pipeline);
+        if (m_gouraud_pipeline)
+            m_device.destroyPipeline(m_gouraud_pipeline);
+
+        if (m_textured_pipeline)
+            m_device.destroyPipeline(m_textured_pipeline);
 
         if (m_command_pool)
             m_device.destroyCommandPool(m_command_pool);
@@ -343,18 +346,19 @@ namespace engine
         m_command_buffers.clear();
         m_sync.clear();
 
-        m_command_pool     = nullptr;
-        m_pipeline         = nullptr;
-        m_pipeline_layout  = nullptr;
-        m_render_pass      = nullptr;
-        m_swapchain        = nullptr;
-        m_surface          = nullptr;
-        m_window           = nullptr;
-        m_device           = nullptr;
-        m_graphics_queue   = nullptr;
-        m_present_queue    = nullptr;
-        m_device_manager   = nullptr;
-        m_instance_manager = nullptr;
+        m_command_pool      = nullptr;
+        m_gouraud_pipeline  = nullptr;
+        m_textured_pipeline = nullptr;
+        m_pipeline_layout   = nullptr;
+        m_render_pass       = nullptr;
+        m_swapchain         = nullptr;
+        m_surface           = nullptr;
+        m_window            = nullptr;
+        m_device            = nullptr;
+        m_graphics_queue    = nullptr;
+        m_present_queue     = nullptr;
+        m_device_manager    = nullptr;
+        m_instance_manager  = nullptr;
     }
 
     VulkanBackend::Shared VulkanBackend::new_shared(string_view application_name, Version application_version,
@@ -453,7 +457,7 @@ namespace engine
         , m_image_views(move(other.m_image_views))
         , m_render_pass(move(other.m_render_pass))
         , m_pipeline_layout(move(other.m_pipeline_layout))
-        , m_pipeline(move(other.m_pipeline))
+        , m_gouraud_pipeline(move(other.m_gouraud_pipeline))
         , m_command_pool(move(other.m_command_pool))
         , m_command_buffers(move(other.m_command_buffers))
         , m_sync(move(other.m_sync))
@@ -481,7 +485,7 @@ namespace engine
         swap(m_image_views, other.m_image_views);
         swap(m_render_pass, other.m_render_pass);
         swap(m_pipeline_layout, other.m_pipeline_layout);
-        swap(m_pipeline, other.m_pipeline);
+        swap(m_gouraud_pipeline, other.m_gouraud_pipeline);
         swap(m_command_pool, other.m_command_pool);
         swap(m_command_buffers, other.m_command_buffers);
         swap(m_sync, other.m_sync);
@@ -760,31 +764,66 @@ namespace engine
 
         auto config = PreparedPipelineConfiguration(pipeline_config);
 
-        vk::GraphicsPipelineCreateInfo graphics_pipeline_info = {
-            .stageCount          = (uint32_t)config.shader_stages.size(),
-            .pStages             = config.shader_stages.data(),
-            .pVertexInputState   = &config.vertex_input,
-            .pInputAssemblyState = &config.input_assembly,
-            .pViewportState      = &config.viewport_state,
-            .pRasterizationState = &config.rasterizer,
-            .pMultisampleState   = &config.multisampling,
-            .pDepthStencilState  = nullptr,
-            .pColorBlendState    = &config.color_blending,
-            .pDynamicState       = &config.dynamic_state,
-            .layout              = m_pipeline_layout,
-            .renderPass          = m_render_pass,
-            .subpass             = 0,
-            .basePipelineHandle  = nullptr,
-            .basePipelineIndex   = -1,
-        };
-
         {
-            auto [result, graphics_pipeline] = m_device.createGraphicsPipeline(nullptr, graphics_pipeline_info);
+            vk::GraphicsPipelineCreateInfo gouraud_pipeline_info = {
+                .stageCount          = (uint32_t)config.shader_stages.size(),
+                .pStages             = config.shader_stages.data(),
+                .pVertexInputState   = &config.vertex_input,
+                .pInputAssemblyState = &config.input_assembly,
+                .pViewportState      = &config.viewport_state,
+                .pRasterizationState = &config.rasterizer,
+                .pMultisampleState   = &config.multisampling,
+                .pDepthStencilState  = nullptr,
+                .pColorBlendState    = &config.color_blending,
+                .pDynamicState       = &config.dynamic_state,
+                .layout              = m_pipeline_layout,
+                .renderPass          = m_render_pass,
+                .subpass             = 0,
+                .basePipelineHandle  = nullptr,
+                .basePipelineIndex   = -1,
+            };
+
+            auto [result, pipeline] = m_device.createGraphicsPipeline(nullptr, gouraud_pipeline_info);
             if (result != vk::Result::eSuccess)
                 throw VulkanException((uint32_t)result, "Failed to create graphics pipeline");
             m_logger->info("Created graphics pipeline");
 
-            m_pipeline = graphics_pipeline;
+            m_gouraud_pipeline = pipeline;
+        }
+
+        using primitives::TEXTURED_VERTEX;
+        pipeline_config.vertex_binding_descriptions =
+            vector(TEXTURED_VERTEX.bindings.begin(), TEXTURED_VERTEX.bindings.end());
+        pipeline_config.vertex_attribute_descriptions =
+            vector(TEXTURED_VERTEX.attributes.begin(), TEXTURED_VERTEX.attributes.end());
+
+        config = pipeline_config;
+
+        {
+            vk::GraphicsPipelineCreateInfo textured_pipeline_info = {
+                .stageCount          = (uint32_t)config.shader_stages.size(),
+                .pStages             = config.shader_stages.data(),
+                .pVertexInputState   = &config.vertex_input,
+                .pInputAssemblyState = &config.input_assembly,
+                .pViewportState      = &config.viewport_state,
+                .pRasterizationState = &config.rasterizer,
+                .pMultisampleState   = &config.multisampling,
+                .pDepthStencilState  = nullptr,
+                .pColorBlendState    = &config.color_blending,
+                .pDynamicState       = &config.dynamic_state,
+                .layout              = m_pipeline_layout,
+                .renderPass          = m_render_pass,
+                .subpass             = 0,
+                .basePipelineHandle  = nullptr,
+                .basePipelineIndex   = -1,
+            };
+
+            auto [result, pipeline] = m_device.createGraphicsPipeline(nullptr, textured_pipeline_info);
+            if (result != vk::Result::eSuccess)
+                throw VulkanException((uint32_t)result, "Failed to create graphics pipeline");
+            m_logger->info("Created graphics pipeline");
+
+            m_textured_pipeline = pipeline;
         }
     }
 
@@ -902,7 +941,7 @@ namespace engine
         };
 
         buffer.beginRenderPass(render_pass_begin, vk::SubpassContents::eInline);
-        buffer.bindPipeline(vk::PipelineBindPoint::eGraphics, m_pipeline);
+        buffer.bindPipeline(vk::PipelineBindPoint::eGraphics, m_gouraud_pipeline);
         buffer.setViewport(0, viewport);
         buffer.setScissor(0, scissor);
 
