@@ -1006,16 +1006,45 @@ namespace engine
                 vmaCreateBuffer(m_allocator, (VkBufferCreateInfo *)&bci, &vma_alloc, (VkBuffer *)&buf, &alloc, nullptr))
             throw VulkanException(result, "Failed to allocate buffer");
 
-        size_t total_bytes = vertices.size_bytes() + indices.size_bytes();
+        // Transferring must be performed such that the writing buffer does not overflow.
 
-        m_staging_buffer.wait(m_device);
-        m_staging_buffer.reset(m_device);
-        uint8_t *sbuf = m_staging_buffer;
-        memcpy(sbuf, vertices.data(), vertices.size_bytes());
-        memcpy(sbuf + vertices.size_bytes(), indices.data(), indices.size_bytes());
-        m_staging_buffer.flush(m_allocator, 0, total_bytes);
-        m_staging_buffer.transfer(buf, m_graphics_queue, 0, 0, total_bytes);
-        m_staging_buffer.wait(m_device);
+        size_t vbuf_bytes  = vertices.size_bytes();   // Vertex buffer bytes
+        size_t ibuf_bytes  = indices.size_bytes();    // Index buffer bytes
+        size_t total_bytes = vbuf_bytes + ibuf_bytes; // Total bytes
+        size_t buffer_off  = 0;                       // Buffer offset
+        size_t rdbuff_off  = 0;                       // Reading buffer offset
+
+        // Transfer vertex buffer
+        while (rdbuff_off < vbuf_bytes) {
+            m_staging_buffer.wait(m_device);
+            m_staging_buffer.reset(m_device); // Lock fence
+
+            size_t bytes = std::min(vbuf_bytes, (size_t)StagingBuffer::SIZE);
+            memcpy(m_staging_buffer, vertices.data() + rdbuff_off, bytes);
+            rdbuff_off += bytes;
+
+            m_staging_buffer.flush(m_allocator, 0, bytes);
+            m_staging_buffer.transfer(buf, m_graphics_queue, 0, buffer_off, bytes);
+            buffer_off += bytes;
+        }
+
+        rdbuff_off = 0;
+
+        // Transfer index buffer
+        while (rdbuff_off < ibuf_bytes) {
+            m_staging_buffer.wait(m_device);
+            m_staging_buffer.reset(m_device); // Lock fence
+
+            size_t bytes = std::min(ibuf_bytes - rdbuff_off, (size_t)StagingBuffer::SIZE);
+            memcpy(m_staging_buffer, indices.data(), bytes);
+            rdbuff_off += bytes;
+
+            m_staging_buffer.flush(m_allocator, 0, bytes);
+            m_staging_buffer.transfer(buf, m_graphics_queue, 0, buffer_off, bytes);
+            buffer_off += bytes;
+        }
+
+        m_staging_buffer.wait(m_device); // Wait for final transfer
 
         auto vba = new VertexBufferAllocation(this, alloc, buf, 0, vertices.size_bytes(),
                                               (vk::DeviceSize)vertices.size_bytes(), (uint32_t)indices.size());
