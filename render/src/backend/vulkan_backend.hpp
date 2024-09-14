@@ -57,29 +57,6 @@ namespace engine
         using SharedDeviceManager   = std::shared_ptr<class RenderDeviceManager>;
         using Shared                = std::shared_ptr<VulkanBackend>;
 
-        struct VertexBufferAllocation final : public MeshHandle
-        {
-            // Does not own data
-            VulkanBackend *backend;
-            VmaAllocation  alloc;
-            vk::Buffer     buffer;
-            vk::DeviceSize vtx_offset;
-            vk::DeviceSize idx_offset;
-            vk::DeviceSize size;
-            uint32_t       count;
-
-            bool is_visible;
-
-            VertexBufferAllocation(VulkanBackend *backend, VmaAllocation alloc, vk::Buffer buffer,
-                                   vk::DeviceSize vtx_offset, vk::DeviceSize idx_offset, vk::DeviceSize size,
-                                   uint32_t indices);
-            void destroy(bool destructor = false);
-            ~VertexBufferAllocation() override;
-
-            void visible(bool value) override;
-            bool visible() const override;
-        };
-
         struct StagingBuffer
         {
             static constexpr uint32_t SIZE = 8192;
@@ -102,7 +79,11 @@ namespace engine
         };
 
       public:
-        MeshHandlePtr load(std::span<primitives::GouraudVertex> vertices, std::span<uint32_t> indices) override;
+        std::shared_ptr<Object> load(std::span<primitives::GouraudVertex> vertices,
+                                     std::span<uint32_t>                  indices) override;
+
+        std::optional<DrawingContext> begin_draw();
+        void                          end_draw(DrawingContext context);
 
         VulkanBackend(std::string_view application_name, Version application_version, GLFWwindow *window);
         VulkanBackend(const VulkanBackend &other, GLFWwindow *window);
@@ -114,9 +95,6 @@ namespace engine
         ///
         /// The device from `other` must be compatible with the surface created with the window
         static Shared new_shared(const Shared &other, GLFWwindow *window);
-
-        /// Render a frame
-        void render_frame();
 
         /// Wait until the device is idle
         void wait_idle();
@@ -131,39 +109,38 @@ namespace engine
         VulkanBackend(VulkanBackend &&) noexcept;
         VulkanBackend &operator=(VulkanBackend &&) noexcept;
 
-      private:
         std::shared_ptr<spdlog::logger> m_logger           = {};
         SharedInstanceManager           m_instance_manager = {};
         SharedDeviceManager             m_device_manager   = {};
 
-        static constexpr uint32_t                   IN_FLIGHT           = 2;
-        uint32_t                                    m_frame_index       = 0;
-        GLFWwindow                                 *m_window            = {};
-        vk::Device                                  m_device            = {};
-        vk::Queue                                   m_graphics_queue    = {};
-        vk::Queue                                   m_present_queue     = {};
-        vk::SurfaceKHR                              m_surface           = {};
-        vk::SwapchainKHR                            m_swapchain         = {};
-        std::vector<vk::Image>                      m_images            = {};
-        std::vector<vk::ImageView>                  m_image_views       = {};
-        vk::RenderPass                              m_render_pass       = {};
-        vk::PipelineLayout                          m_pipeline_layout   = {};
-        vk::Pipeline                                m_gouraud_pipeline  = {};
-        vk::Pipeline                                m_textured_pipeline = {};
-        std::vector<vk::Framebuffer>                m_framebuffers      = {};
-        vk::CommandPool                             m_command_pool      = {};
-        std::vector<vk::CommandBuffer>              m_command_buffers   = {};
-        std::vector<GpuSync>                        m_sync              = {};
-        vk::ShaderModule                            m_vertex_shader     = {};
-        vk::ShaderModule                            m_fragment_shader   = {};
-        VmaAllocator                                m_allocator         = {};
-        std::forward_list<VertexBufferAllocation *> m_draw_queue        = {};
-        StagingBuffer                               m_staging_buffer    = {};
+        static constexpr uint32_t      IN_FLIGHT           = 2;
+        uint32_t                       m_frame_index       = 0;
+        GLFWwindow                    *m_window            = {};
+        vk::Device                     m_device            = {};
+        vk::Queue                      m_graphics_queue    = {};
+        vk::Queue                      m_present_queue     = {};
+        vk::SurfaceKHR                 m_surface           = {};
+        vk::SwapchainKHR               m_swapchain         = {};
+        std::vector<vk::Image>         m_images            = {};
+        std::vector<vk::ImageView>     m_image_views       = {};
+        vk::RenderPass                 m_render_pass       = {};
+        vk::PipelineLayout             m_pipeline_layout   = {};
+        vk::Pipeline                   m_gouraud_pipeline  = {};
+        vk::Pipeline                   m_textured_pipeline = {};
+        std::vector<vk::Framebuffer>   m_framebuffers      = {};
+        vk::CommandPool                m_command_pool      = {};
+        std::vector<vk::CommandBuffer> m_command_buffers   = {};
+        std::vector<GpuSync>           m_sync              = {};
+        vk::ShaderModule               m_vertex_shader     = {};
+        vk::ShaderModule               m_fragment_shader   = {};
+        VmaAllocator                   m_allocator         = {};
+        StagingBuffer                  m_staging_buffer    = {};
 
         SwapchainConfiguration m_swapchain_config    = {};
         bool                   m_framebuffer_resized = false;
         bool                   m_valid_framebuffer   = {};
 
+      private:
         static void handle_framebuffer_resize(GLFWwindow *window, int width, int height);
 
         // Pipeline initialization functions
@@ -192,7 +169,7 @@ namespace engine
         /// Initialize the allocator
         void initialize_device_memory_allocator();
 
-        void record_command_buffer(vk::CommandBuffer buffer, uint32_t image_index);
+        void initialize_command_buffer(vk::CommandBuffer buffer, uint32_t image_index);
 
         /// Destroy the swapchain, its images, and the framebuffers
         void destroy_swapchain();

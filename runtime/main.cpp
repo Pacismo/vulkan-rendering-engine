@@ -3,15 +3,16 @@
 #include <exceptions.hpp>
 #include <fmt/format.h>
 #include <memory>
+#include <object.hpp>
 #include <span>
 #include <spdlog/sinks/stdout_color_sinks.h>
 #include <vertex.hpp>
 #include <window.hpp>
 
 using namespace std::chrono_literals;
-using std::shared_ptr, std::initializer_list, engine::Window, std::string_view, std::array, engine::primitives::GouraudVertex,
-    std::chrono::time_point, std::chrono::system_clock;
-using MeshHandle = engine::RenderBackend::MeshHandlePtr;
+using engine::primitives::GouraudVertex, engine::Object;
+using std::shared_ptr, std::initializer_list, engine::Window, std::string_view, std::array, std::chrono::time_point,
+    std::chrono::system_clock, std::list, std::shared_ptr;
 
 const array<GouraudVertex, 4> VERTICES = {
     GouraudVertex {.position = {-0.5, -0.5, 0.0}, .color = {1.0, 0.0, 0.0}},
@@ -24,9 +25,6 @@ const array<uint32_t, 6> INDICES = {0, 1, 2, 2, 3, 0};
 
 class ExampleWindow : public Window
 {
-    MeshHandle triangle;
-    double     next_draw;
-
   public:
     ExampleWindow(string_view title, int width, int height)
         : Window(title, width, height, "Runtime", {0, 1, 0})
@@ -36,18 +34,18 @@ class ExampleWindow : public Window
         auto vertices = VERTICES;
         auto indices  = INDICES;
 
-        triangle  = rb->load(vertices, indices);
-        next_draw = 2.0;
+        objects.push_back(rb->load(vertices, indices));
     }
 
-    void physics_process(double delta) override
+    void physics_process(double delta) override { }
+
+    void handle_draw(struct engine::DrawingContext &ctx) override
     {
-        next_draw -= delta;
-        if (next_draw <= 0.0) {
-            triangle->visible(!triangle->visible());
-            next_draw = 2.0;
-        }
+        for (auto &obj : objects)
+            obj->draw(ctx);
     }
+
+    list<shared_ptr<Object>> objects = {};
 };
 
 static void set_spdlog_global_settings()

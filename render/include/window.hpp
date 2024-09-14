@@ -27,6 +27,7 @@ namespace engine
         void set_title(std::string_view new_title);
 
         std::shared_ptr<RenderBackend> get_render_backend();
+        virtual void                   handle_draw(struct DrawingContext &context) = 0;
 
         virtual void process(double delta);
         virtual void physics_process(double delta);

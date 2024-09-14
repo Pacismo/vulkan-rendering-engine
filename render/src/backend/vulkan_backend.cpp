@@ -10,13 +10,16 @@
 #include <array>
 #include <fmt/format.h>
 #include <limits>
+#include <optional>
 #include <span>
 #include <sstream>
+
+#include "../drawables/GouraudMesh.hpp"
 
 #include "shaders.hpp"
 
 using std::move, std::swap, std::string_view, std::vector, std::shared_ptr, std::stringstream, std::span, std::tuple,
-    std::numeric_limits, std::clamp, std::min, std::array;
+    std::numeric_limits, std::clamp, std::min, std::array, std::optional, std::nullopt;
 
 static vk::SurfaceKHR create_surface(vk::Instance instance, GLFWwindow *window)
 {
@@ -305,9 +308,6 @@ namespace engine
 
         m_staging_buffer.deinit(m_device, m_command_pool, m_allocator);
 
-        for (auto vba : m_draw_queue)
-            vba->destroy();
-
         if (m_allocator)
             vmaDestroyAllocator(m_allocator);
 
@@ -342,7 +342,6 @@ namespace engine
 
         m_logger->info("Destroyed render manager");
 
-        m_draw_queue.clear();
         m_command_buffers.clear();
         m_sync.clear();
 
@@ -372,73 +371,6 @@ namespace engine
         return Shared(new VulkanBackend(*other, window));
     }
 
-    void VulkanBackend::render_frame()
-    {
-        constexpr uint64_t TIMEOUT = std::numeric_limits<uint64_t>::max();
-
-        if (!m_valid_framebuffer) {
-            m_valid_framebuffer = recreate_swapchain();
-            return;
-        }
-
-        uint32_t          frame      = m_frame_index;
-        GpuSync          &sync       = m_sync[frame];
-        vk::CommandBuffer cmd_buffer = m_command_buffers[frame];
-
-        auto wait_result = m_device.waitForFences(sync.in_flight, true, TIMEOUT);
-        if (wait_result != vk::Result::eSuccess)
-            throw VulkanException((uint32_t)wait_result, "Failed to wait on fence");
-
-        auto [ia_result, image_index] = m_device.acquireNextImageKHR(m_swapchain, TIMEOUT, sync.image_available);
-        if (ia_result == vk::Result::eErrorOutOfDateKHR) {
-            m_valid_framebuffer = recreate_swapchain();
-            return;
-        } else if (ia_result != vk::Result::eSuccess)
-            throw VulkanException((uint32_t)ia_result, "Failed to acquire image");
-
-        m_device.resetFences(sync.in_flight);
-
-        cmd_buffer.reset();
-        record_command_buffer(cmd_buffer, image_index);
-
-        vk::PipelineStageFlags wait_stages = vk::PipelineStageFlagBits::eColorAttachmentOutput;
-
-        vk::SubmitInfo submit = {
-            .waitSemaphoreCount   = 1,
-            .pWaitSemaphores      = &sync.image_available,
-            .pWaitDstStageMask    = &wait_stages,
-            .commandBufferCount   = 1,
-            .pCommandBuffers      = &cmd_buffer,
-            .signalSemaphoreCount = 1,
-            .pSignalSemaphores    = &sync.render_finished,
-        };
-
-        m_graphics_queue.submit(submit, sync.in_flight);
-
-        vk::PresentInfoKHR present = {
-            .waitSemaphoreCount = 1,
-            .pWaitSemaphores    = &sync.render_finished,
-            .swapchainCount     = 1,
-            .pSwapchains        = &m_swapchain,
-            .pImageIndices      = &image_index,
-            .pResults           = nullptr,
-        };
-
-        bool should_recreate_swapchain = false;
-        try {
-            should_recreate_swapchain = m_present_queue.presentKHR(present) == vk::Result::eSuboptimalKHR;
-        } catch (vk::OutOfDateKHRError) {
-            should_recreate_swapchain = true;
-        }
-
-        if (should_recreate_swapchain || m_framebuffer_resized) {
-            m_framebuffer_resized = false;
-            m_valid_framebuffer   = recreate_swapchain();
-        }
-
-        m_frame_index = ++m_frame_index % IN_FLIGHT;
-    }
-
     void VulkanBackend::wait_idle()
     {
         m_device.waitIdle();
@@ -466,7 +398,6 @@ namespace engine
         , m_fragment_shader(move(other.m_fragment_shader))
         , m_allocator(move(other.m_allocator))
         , m_staging_buffer(move(other.m_staging_buffer))
-        , m_draw_queue(move(other.m_draw_queue))
     { }
 
     VulkanBackend &VulkanBackend::operator=(VulkanBackend &&other) noexcept
@@ -492,7 +423,6 @@ namespace engine
 
         swap(m_allocator, other.m_allocator);
         swap(m_staging_buffer, other.m_staging_buffer);
-        swap(m_draw_queue, other.m_draw_queue);
 
         swap(m_swapchain_config, other.m_swapchain_config);
         swap(m_vertex_shader, other.m_vertex_shader);
@@ -907,7 +837,90 @@ namespace engine
         m_staging_buffer.init(m_allocator, cmd, fence);
     }
 
-    void VulkanBackend::record_command_buffer(vk::CommandBuffer buffer, uint32_t image_index)
+    optional<DrawingContext> VulkanBackend::begin_draw()
+    {
+        constexpr uint64_t TIMEOUT = std::numeric_limits<uint64_t>::max();
+
+        if (!m_valid_framebuffer) {
+            m_valid_framebuffer = recreate_swapchain();
+            return nullopt;
+        }
+
+        uint32_t          frame      = m_frame_index;
+        GpuSync          &sync       = m_sync[frame];
+        vk::CommandBuffer cmd_buffer = m_command_buffers[frame];
+
+        auto wait_result = m_device.waitForFences(sync.in_flight, true, TIMEOUT);
+        if (wait_result != vk::Result::eSuccess)
+            throw VulkanException((uint32_t)wait_result, "Failed to wait on fence");
+
+        auto [ia_result, image_index] = m_device.acquireNextImageKHR(m_swapchain, TIMEOUT, sync.image_available);
+        if (ia_result == vk::Result::eErrorOutOfDateKHR) {
+            m_valid_framebuffer = recreate_swapchain();
+            return nullopt;
+        } else if (ia_result != vk::Result::eSuccess)
+            throw VulkanException((uint32_t)ia_result, "Failed to acquire image");
+
+        m_device.resetFences(sync.in_flight);
+
+        cmd_buffer.reset();
+        initialize_command_buffer(cmd_buffer, image_index);
+
+        return DrawingContext {
+            .backend     = this,
+            .frame_index = frame,
+            .image_index = image_index,
+            .cmd         = cmd_buffer,
+        };
+    }
+
+    void VulkanBackend::end_draw(DrawingContext context)
+    {
+        auto [_, frame_index, image_index, cmd_buffer] = context;
+        auto &sync                                     = m_sync[frame_index];
+
+        cmd_buffer.endRenderPass();
+        cmd_buffer.end();
+
+        vk::PipelineStageFlags wait_stages = vk::PipelineStageFlagBits::eColorAttachmentOutput;
+
+        vk::SubmitInfo submit = {
+            .waitSemaphoreCount   = 1,
+            .pWaitSemaphores      = &sync.image_available,
+            .pWaitDstStageMask    = &wait_stages,
+            .commandBufferCount   = 1,
+            .pCommandBuffers      = &cmd_buffer,
+            .signalSemaphoreCount = 1,
+            .pSignalSemaphores    = &sync.render_finished,
+        };
+
+        m_graphics_queue.submit(submit, sync.in_flight);
+
+        vk::PresentInfoKHR present = {
+            .waitSemaphoreCount = 1,
+            .pWaitSemaphores    = &sync.render_finished,
+            .swapchainCount     = 1,
+            .pSwapchains        = &m_swapchain,
+            .pImageIndices      = &image_index,
+            .pResults           = nullptr,
+        };
+
+        bool should_recreate_swapchain = false;
+        try {
+            should_recreate_swapchain = m_present_queue.presentKHR(present) == vk::Result::eSuboptimalKHR;
+        } catch (vk::OutOfDateKHRError) {
+            should_recreate_swapchain = true;
+        }
+
+        if (should_recreate_swapchain || m_framebuffer_resized) {
+            m_framebuffer_resized = false;
+            m_valid_framebuffer   = recreate_swapchain();
+        }
+
+        m_frame_index = ++m_frame_index % IN_FLIGHT;
+    }
+
+    void VulkanBackend::initialize_command_buffer(vk::CommandBuffer buffer, uint32_t image_index)
     {
         vk::CommandBufferBeginInfo buffer_begin = {
             .flags            = {},
@@ -944,17 +957,6 @@ namespace engine
         buffer.bindPipeline(vk::PipelineBindPoint::eGraphics, m_gouraud_pipeline);
         buffer.setViewport(0, viewport);
         buffer.setScissor(0, scissor);
-
-        for (auto &vba : m_draw_queue) {
-            if (!vba->is_visible)
-                continue;
-            buffer.bindVertexBuffers(0, vba->buffer, vba->vtx_offset);
-            buffer.bindIndexBuffer(vba->buffer, vba->idx_offset, vk::IndexType::eUint32);
-            buffer.drawIndexed(vba->count, 1, 0, 0, 0);
-        }
-
-        buffer.endRenderPass();
-        buffer.end();
     }
 
     void GpuSync::init(vk::Device device)
@@ -987,44 +989,34 @@ namespace engine
         in_flight       = nullptr;
     }
 
-    RenderBackend::MeshHandlePtr VulkanBackend::load(span<primitives::GouraudVertex> vertices, span<uint32_t> indices)
+    shared_ptr<Object> VulkanBackend::load(span<primitives::GouraudVertex> vertices, span<uint32_t> indices)
     {
-        vk::BufferCreateInfo bci = {
-            .size  = vertices.size_bytes() + indices.size_bytes(),
-            .usage = vk::BufferUsageFlagBits::eVertexBuffer | vk::BufferUsageFlagBits::eIndexBuffer
-                   | vk::BufferUsageFlagBits::eTransferDst,
-        };
-
-        VmaAllocationCreateInfo vma_alloc = {
-            .usage = VMA_MEMORY_USAGE_AUTO,
-        };
-
-        vk::Buffer    buf;
-        VmaAllocation alloc;
-
-        if (VkResult result =
-                vmaCreateBuffer(m_allocator, (VkBufferCreateInfo *)&bci, &vma_alloc, (VkBuffer *)&buf, &alloc, nullptr))
-            throw VulkanException(result, "Failed to allocate buffer");
-
-        // Transferring must be performed such that the writing buffer does not overflow.
+        constexpr vk::BufferUsageFlags BUFFER_USAGE = vk::BufferUsageFlagBits::eVertexBuffer
+                                                    | vk::BufferUsageFlagBits::eIndexBuffer
+                                                    | vk::BufferUsageFlagBits::eTransferDst;
 
         size_t vbuf_bytes  = vertices.size_bytes();   // Vertex buffer bytes
         size_t ibuf_bytes  = indices.size_bytes();    // Index buffer bytes
         size_t total_bytes = vbuf_bytes + ibuf_bytes; // Total bytes
-        size_t buffer_off  = 0;                       // Buffer offset
-        size_t rdbuff_off  = 0;                       // Reading buffer offset
+
+        Allocation allocation(m_allocator, total_bytes, BUFFER_USAGE);
+
+        // Transferring must be performed such that the writing buffer does not overflow.
+
+        size_t buffer_off = 0; // Buffer offset
+        size_t rdbuff_off = 0; // Reading buffer offset
 
         // Transfer vertex buffer
         while (rdbuff_off < vbuf_bytes) {
             m_staging_buffer.wait(m_device);
             m_staging_buffer.reset(m_device); // Lock fence
 
-            size_t bytes = std::min(vbuf_bytes, (size_t)StagingBuffer::SIZE);
+            size_t bytes = std::min(vbuf_bytes - rdbuff_off, (size_t)StagingBuffer::SIZE);
             memcpy(m_staging_buffer, vertices.data() + rdbuff_off, bytes);
             rdbuff_off += bytes;
 
             m_staging_buffer.flush(m_allocator, 0, bytes);
-            m_staging_buffer.transfer(buf, m_graphics_queue, 0, buffer_off, bytes);
+            m_staging_buffer.transfer(allocation.buffer, m_graphics_queue, 0, buffer_off, bytes);
             buffer_off += bytes;
         }
 
@@ -1036,69 +1028,17 @@ namespace engine
             m_staging_buffer.reset(m_device); // Lock fence
 
             size_t bytes = std::min(ibuf_bytes - rdbuff_off, (size_t)StagingBuffer::SIZE);
-            memcpy(m_staging_buffer, indices.data(), bytes);
+            memcpy(m_staging_buffer, indices.data() + rdbuff_off, bytes);
             rdbuff_off += bytes;
 
             m_staging_buffer.flush(m_allocator, 0, bytes);
-            m_staging_buffer.transfer(buf, m_graphics_queue, 0, buffer_off, bytes);
+            m_staging_buffer.transfer(allocation.buffer, m_graphics_queue, 0, buffer_off, bytes);
             buffer_off += bytes;
         }
 
         m_staging_buffer.wait(m_device); // Wait for final transfer
 
-        auto vba = new VertexBufferAllocation(this, alloc, buf, 0, vertices.size_bytes(),
-                                              (vk::DeviceSize)vertices.size_bytes(), (uint32_t)indices.size());
-
-        m_draw_queue.push_front(vba);
-
-        return MeshHandlePtr(vba);
-    }
-
-    VulkanBackend::VertexBufferAllocation::VertexBufferAllocation(VulkanBackend *backend, VmaAllocation alloc,
-                                                                  vk::Buffer buffer, vk::DeviceSize vtx_offset,
-                                                                  vk::DeviceSize idx_offset, vk::DeviceSize size,
-                                                                  uint32_t indices)
-        : backend(backend)
-        , alloc(alloc)
-        , buffer(buffer)
-        , vtx_offset(vtx_offset)
-        , idx_offset(idx_offset)
-        , size(size)
-        , count(indices)
-        , is_visible(true)
-    { }
-
-    void VulkanBackend::VertexBufferAllocation::destroy(bool destructor)
-    {
-        if (buffer)
-            vmaDestroyBuffer(backend->m_allocator, buffer, alloc);
-
-        if (destructor)
-            backend->m_draw_queue.remove(this);
-
-        buffer     = nullptr;
-        alloc      = nullptr;
-        backend    = nullptr;
-        count      = 0;
-        size       = 0;
-        vtx_offset = 0;
-        idx_offset = 0;
-    }
-
-    VulkanBackend::VertexBufferAllocation::~VertexBufferAllocation()
-    {
-        if (buffer)
-            destroy(true);
-    }
-
-    void VulkanBackend::VertexBufferAllocation::visible(bool value)
-    {
-        is_visible = value;
-    }
-
-    bool VulkanBackend::VertexBufferAllocation::visible() const
-    {
-        return is_visible;
+        return shared_ptr<Object>(new GouraudMesh(move(allocation), 0, vbuf_bytes, indices.size()));
     }
 
     VulkanBackend::StagingBuffer::operator uint8_t *()

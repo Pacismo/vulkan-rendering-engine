@@ -9,9 +9,10 @@ set(RENDER_SOURCES
     "src/backend/vulkan_backend.cpp"     "src/backend/vulkan_backend.hpp"
     "include/vertex.hpp"                 "src/backend/vertex_description.hpp"
     "include/render_backend.hpp"         "src/backend/vma_impl.cpp"
-    "include/drawable.hpp"
-    "src/drawing_context.hpp"
-    "src/drawables/GouraudMesh.hpp")
+    "include/object.hpp"
+    "include/constants.hpp"
+    "src/drawables/DrawingContext.hpp" 
+    "src/drawables/GouraudMesh.cpp"      "src/drawables/GouraudMesh.hpp")
 
 add_library(render ${RENDER_SOURCES})
 

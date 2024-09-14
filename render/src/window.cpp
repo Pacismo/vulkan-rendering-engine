@@ -3,6 +3,7 @@
 #include "backend/device_manager.hpp"
 #include "backend/instance_manager.hpp"
 #include "backend/vulkan_backend.hpp"
+#include "drawables/DrawingContext.hpp"
 #include "exceptions.hpp"
 #include "logger.hpp"
 #include "window.hpp"
@@ -16,8 +17,9 @@
 #include <vector>
 
 using std::string_view, std::span, std::vector, std::tuple, std::get, std::shared_ptr, std::stringstream, std::sort,
-    std::move, std::swap, std::chrono::system_clock, std::chrono::time_point, std::chrono::duration,
-    std::chrono::duration_cast, std::chrono::time_point_cast, std::chrono::nanoseconds, std::chrono::seconds;
+    std::move, std::swap, std::optional;
+using std::chrono::system_clock, std::chrono::time_point, std::chrono::duration, std::chrono::duration_cast,
+    std::chrono::time_point_cast, std::chrono::nanoseconds, std::chrono::seconds;
 using namespace std::chrono_literals;
 
 namespace engine
@@ -100,7 +102,12 @@ namespace engine
                 }
 
                 time_point start = system_clock::now();
-                m_render_manager->render_frame();
+
+                if (optional<DrawingContext> ctx = m_render_manager->begin_draw()) {
+                    handle_draw(ctx.value());
+                    m_render_manager->end_draw(ctx.value());
+                }
+
                 duration dur = system_clock::now() - start;
                 last_draw    = now;
 
