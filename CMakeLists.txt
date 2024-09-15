@@ -7,7 +7,8 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 set(GRT_ENGINE_NAME "Game Runtime")
 
-add_compile_definitions(DEBUG_ASSERTIONS=${DEBUG})
+add_compile_definitions(DEBUG_ASSERTIONS=${DEBUG}
+						TERMINAL_ENABLED=${TERMINAL})
 
 find_package(Vulkan REQUIRED)
 find_package(VulkanMemoryAllocator CONFIG REQUIRED)
@@ -19,12 +20,12 @@ find_package(spdlog CONFIG REQUIRED)
 find_package(unofficial-sqlite3 CONFIG REQUIRED)
 find_package(SQLiteCpp CONFIG REQUIRED)
 
-set(TOOLS_DIR "${CMAKE_BINARY_DIR}/tools")
+set(TOOLS_DIR "${CMAKE_BINARY_DIR}/../tools")
 
 if (WIN32)
 	set(BINTOOL "${TOOLS_DIR}/bin/bintool.exe")
 	set(COMPSHDR "${TOOLS_DIR}/bin/compshdr.exe")
-	elseif(UNIX)
+elseif(UNIX)
 	set(BINTOOL "${TOOLS_DIR}/bin/bintool")
 	set(COMPSHDR "${TOOLS_DIR}/bin/compshdr")
 endif()
