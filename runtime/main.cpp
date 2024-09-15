@@ -9,6 +9,12 @@
 #include <vertex.hpp>
 #include <window.hpp>
 
+#if TERMINAL_ENABLED or not defined(WIN32)
+#    define MAIN int main()
+#else
+#    define MAIN int WinMain()
+#endif
+
 using namespace std::chrono_literals;
 using engine::primitives::GouraudVertex, engine::Object;
 using std::shared_ptr, std::initializer_list, engine::Window, std::string_view, std::array, std::chrono::time_point,
@@ -71,7 +77,7 @@ static shared_ptr<spdlog::logger> make_logger()
     return logger;
 }
 
-int main()
+MAIN
 {
     set_spdlog_global_settings();
     auto logger = make_logger();
