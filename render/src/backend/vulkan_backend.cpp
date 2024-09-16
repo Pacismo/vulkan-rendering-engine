@@ -694,7 +694,7 @@ namespace engine
             .rasterizerDiscardEnable = false,
             .polygonMode             = vk::PolygonMode::eFill,
             .cullMode                = vk::CullModeFlagBits::eBack,
-            .frontFace               = vk::FrontFace::eClockwise,
+            .frontFace               = vk::FrontFace::eCounterClockwise,
             .depthBiasEnable         = false,
             .depthBiasConstantFactor = 0.0,
             .depthBiasClamp          = 0.0,

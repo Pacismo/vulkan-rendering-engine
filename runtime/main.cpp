@@ -20,15 +20,24 @@ using engine::primitives::GouraudVertex, engine::Object, engine::Transform;
 using std::shared_ptr, std::initializer_list, engine::Window, std::string_view, std::array, std::chrono::time_point,
     std::chrono::system_clock, std::list, std::shared_ptr;
 
-const array<GouraudVertex, 4> VERTICES = {
+const array<GouraudVertex, 8> VERTICES = {
     GouraudVertex {.position = {-0.5, -0.5, 0.0}, .color = {1.0, 0.0, 0.0}},
     GouraudVertex { .position = {0.5, -0.5, 0.0}, .color = {0.0, 1.0, 0.0}},
     GouraudVertex {  .position = {0.5, 0.5, 0.0}, .color = {0.0, 0.0, 1.0}},
     GouraudVertex { .position = {-0.5, 0.5, 0.0}, .color = {1.0, 1.0, 1.0}},
+    GouraudVertex {.position = {-0.5, -0.5, 1.0}, .color = {1.0, 0.0, 0.0}},
+    GouraudVertex { .position = {0.5, -0.5, 1.0}, .color = {0.0, 1.0, 0.0}},
+    GouraudVertex {  .position = {0.5, 0.5, 1.0}, .color = {0.0, 0.0, 1.0}},
+    GouraudVertex { .position = {-0.5, 0.5, 1.0}, .color = {1.0, 1.0, 1.0}},
 };
 
-const array<uint32_t, 6> INDICES = {
-    0, 1, 2, 2, 3, 0,
+const array<uint32_t, 36> INDICES = {
+    0, 1, 2, 2, 3, 0, //
+    6, 5, 4, 4, 7, 6, //
+    5, 1, 0, 4, 5, 0, //
+    6, 2, 1, 5, 6, 1, //
+    7, 3, 2, 6, 7, 2, //
+    4, 0, 3, 7, 4, 3, //
 };
 
 class Cube : public Object
@@ -39,25 +48,8 @@ class Cube : public Object
         auto vertices = VERTICES;
         auto indices  = INDICES;
 
-        squares[0]                       = backend->load(vertices, indices);
-        squares[0]->transform.location   = {0.5, 0.0, 0.5};
-        squares[0]->transform.rotation.x = glm::radians(90.0);
-        squares[1]                       = backend->load(vertices, indices);
-        squares[1]->transform.location   = {-0.5, 0.0, 0.5};
-        squares[1]->transform.rotation.x = glm::radians(-90.0);
-
-        squares[2]                       = backend->load(vertices, indices);
-        squares[2]->transform.location   = {0.0, -0.5, 0.5};
-        squares[2]->transform.rotation.y = glm::radians(90.0);
-        squares[3]                       = backend->load(vertices, indices);
-        squares[3]->transform.location   = {0.0, 0.5, 0.5};
-        squares[3]->transform.rotation.y = glm::radians(-90.0);
-
-        squares[4]                       = backend->load(vertices, indices);
-        squares[4]->transform.location   = {0.0, 0.0, 0.0};
-        squares[4]->transform.rotation.x = glm::radians(180.0);
-        squares[5]                       = backend->load(vertices, indices);
-        squares[5]->transform.location   = {0.0, 0.0, 1.0};
+        mesh                     = backend->load(vertices, indices);
+        mesh->transform.location = {0.0, 0.0, 0.0};
 
         transform.location.z = -0.5;
     }
@@ -68,13 +60,9 @@ class Cube : public Object
         transform.rotation.z = glm::mod<float>(sqr, glm::radians(360.0));
     }
 
-    void draw(engine::DrawingContext &context, const glm::mat4 &) override
-    {
-        for (auto &square : squares)
-            square->draw(context, transform);
-    }
+    void draw(engine::DrawingContext &context, const glm::mat4 &) override { mesh->draw(context, transform); }
 
-    std::shared_ptr<Object> squares[6];
+    std::shared_ptr<Object> mesh;
 };
 
 class ExampleWindow : public Window
