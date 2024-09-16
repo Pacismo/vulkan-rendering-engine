@@ -12,9 +12,11 @@ namespace engine
 {
     struct DrawingContext
     {
-        VulkanBackend    *backend;
-        size_t            frame_index;
-        uint32_t          image_index;
-        vk::CommandBuffer cmd;
+        VulkanBackend           *backend;
+        DescriptorPoolManager   *descriptor_pool;
+        size_t                   frame_index;
+        uint32_t                 swapchain_image_index;
+        vk::DescriptorBufferInfo vp_buffer_info;
+        vk::CommandBuffer        cmd;
     };
 } // namespace engine
