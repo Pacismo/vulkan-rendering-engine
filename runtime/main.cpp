@@ -20,14 +20,14 @@ using engine::primitives::GouraudVertex, engine::Object, engine::Transform;
 using std::shared_ptr, std::initializer_list, engine::Window, std::string_view, std::array, std::chrono::time_point,
     std::chrono::system_clock, std::list, std::shared_ptr;
 
-const array<GouraudVertex, 8> VERTICES = {
+const array<GouraudVertex, 4> VERTICES = {
     GouraudVertex {.position = {-0.5, -0.5, 0.0}, .color = {1.0, 0.0, 0.0}},
     GouraudVertex { .position = {0.5, -0.5, 0.0}, .color = {0.0, 1.0, 0.0}},
     GouraudVertex {  .position = {0.5, 0.5, 0.0}, .color = {0.0, 0.0, 1.0}},
     GouraudVertex { .position = {-0.5, 0.5, 0.0}, .color = {1.0, 1.0, 1.0}},
 };
 
-const array<uint32_t, 12> INDICES = {
+const array<uint32_t, 6> INDICES = {
     0, 1, 2, 2, 3, 0,
 };
 
