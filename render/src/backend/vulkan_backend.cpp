@@ -1,6 +1,7 @@
 #include "vulkan_backend.hpp"
 
 #include "../logger.hpp"
+#include "descriptor_pool.hpp"
 #include "device_manager.hpp"
 #include "exceptions.hpp"
 #include "instance_manager.hpp"
@@ -306,10 +307,10 @@ namespace engine
     {
         destroy_swapchain();
 
-        m_staging_buffer.deinit(m_device, m_command_pool, m_allocator);
+        m_staging_buffer.deinit(m_device, m_command_pool, *m_allocator);
 
-        if (m_allocator)
-            vmaDestroyAllocator(m_allocator);
+        for (auto &pool : m_descriptor_pools)
+            pool.destroy();
 
         for (auto &sync : m_sync)
             sync.destroy(m_device);
@@ -325,6 +326,9 @@ namespace engine
 
         if (m_pipeline_layout)
             m_device.destroyPipelineLayout(m_pipeline_layout);
+
+        if (m_uniform_descriptor_layout)
+            m_device.destroyDescriptorSetLayout(m_uniform_descriptor_layout);
 
         if (m_render_pass)
             m_device.destroyRenderPass(m_render_pass);
@@ -345,6 +349,7 @@ namespace engine
         m_command_buffers.clear();
         m_sync.clear();
 
+        m_allocator         = nullptr;
         m_command_pool      = nullptr;
         m_gouraud_pipeline  = nullptr;
         m_textured_pipeline = nullptr;
@@ -490,12 +495,16 @@ namespace engine
         get_images();
         create_render_pass();
         load_shaders();
+        create_descriptor_set_layout();
         create_render_pipeline();
         create_framebuffers();
         create_command_pool();
+        create_descriptor_pools();
         allocate_command_buffers();
         create_sync_primitives();
         initialize_device_memory_allocator();
+
+        finalize_init();
 
         m_valid_framebuffer = m_swapchain_config.extent.width != 0 && m_swapchain_config.extent.height != 0;
     }
@@ -585,6 +594,40 @@ namespace engine
         m_fragment_shader = create_shader_module(m_device, fragment_shader);
     }
 
+    void VulkanBackend::create_descriptor_set_layout()
+    {
+        constexpr vk::DescriptorSetLayoutBinding vp_layout = {
+            .binding            = 0,
+            .descriptorType     = vk::DescriptorType::eUniformBuffer,
+            .descriptorCount    = 1,
+            .stageFlags         = vk::ShaderStageFlagBits::eVertex,
+            .pImmutableSamplers = nullptr,
+        };
+
+        constexpr vk::DescriptorSetLayoutBinding model_layout = {
+            .binding            = 1,
+            .descriptorType     = vk::DescriptorType::eUniformBuffer,
+            .descriptorCount    = 1,
+            .stageFlags         = vk::ShaderStageFlagBits::eVertex,
+            .pImmutableSamplers = nullptr,
+        };
+
+        std::array<vk::DescriptorSetLayoutBinding, 2> descriptor_sets = {vp_layout, model_layout};
+
+        vk::DescriptorSetLayoutCreateInfo create_info = {
+            .bindingCount = descriptor_sets.size(),
+            .pBindings    = descriptor_sets.data(),
+        };
+
+        m_uniform_descriptor_layout = m_device.createDescriptorSetLayout(create_info);
+    }
+
+    void VulkanBackend::create_descriptor_pools()
+    {
+        for (auto &descriptor_pool : m_descriptor_pools)
+            descriptor_pool.init(m_device_manager);
+    }
+
     static vector<vk::ImageView> create_image_views(vk::Device device, span<vk::Image> images, vk::Format format,
                                                     uint32_t image_layers)
     {
@@ -626,8 +669,8 @@ namespace engine
     void VulkanBackend::create_render_pipeline()
     {
         vk::PipelineLayoutCreateInfo pipeline_layout_create_info = {
-            .setLayoutCount         = 0,
-            .pSetLayouts            = nullptr,
+            .setLayoutCount         = 1,
+            .pSetLayouts            = &m_uniform_descriptor_layout,
             .pushConstantRangeCount = 0,
             .pPushConstantRanges    = nullptr,
         };
@@ -812,17 +855,7 @@ namespace engine
 
     void VulkanBackend::initialize_device_memory_allocator()
     {
-        VmaAllocatorCreateInfo alloc_ci = {
-            .flags            = 0,
-            .physicalDevice   = m_device_manager->physical_device,
-            .device           = m_device_manager->device,
-            .pVulkanFunctions = nullptr,
-            .instance         = m_instance_manager->instance,
-            .vulkanApiVersion = vk::ApiVersion13,
-        };
-
-        if (VkResult result = vmaCreateAllocator(&alloc_ci, &m_allocator))
-            throw VulkanException(result, "Failed to create device allocator");
+        m_allocator = shared_ptr<VulkanAllocator>(new VulkanAllocator(m_device_manager));
 
         vk::CommandBufferAllocateInfo cba_info {
             .commandPool        = m_command_pool,
@@ -834,7 +867,13 @@ namespace engine
 
         vk::Fence fence = m_device.createFence(vk::FenceCreateInfo {.flags = vk::FenceCreateFlagBits::eSignaled});
 
-        m_staging_buffer.init(m_allocator, cmd, fence);
+        m_staging_buffer.init(*m_allocator, cmd, fence);
+    }
+
+    void VulkanBackend::finalize_init()
+    {
+        m_vp_uniform = TypedHostVisibleAllocation<ViewProjectionUniform[IN_FLIGHT]>(
+            m_allocator, vk::BufferUsageFlagBits::eUniformBuffer);
     }
 
     optional<DrawingContext> VulkanBackend::begin_draw()
@@ -866,18 +905,37 @@ namespace engine
         cmd_buffer.reset();
         initialize_command_buffer(cmd_buffer, image_index);
 
+        m_vp_uniform[frame] = {
+            .view       = m_camera,
+            .projection = glm::perspectiveFov<float>(glm::radians(m_fov), m_swapchain_config.extent.width,
+                                                     m_swapchain_config.extent.height, 0.1, 10.0),
+        };
+        m_vp_uniform.flush();
+
+        m_descriptor_pools[frame].reset();
+
+        vk::DescriptorBufferInfo dbi = {
+            .buffer = m_vp_uniform.buffer,
+            .offset = m_vp_uniform.offset(frame),
+            .range  = m_vp_uniform.type_size(),
+        };
+
         return DrawingContext {
-            .backend     = this,
-            .frame_index = frame,
-            .image_index = image_index,
-            .cmd         = cmd_buffer,
+            .backend               = this,
+            .descriptor_pool       = &m_descriptor_pools[frame],
+            .frame_index           = frame,
+            .swapchain_image_index = image_index,
+            .vp_buffer_info        = dbi,
+            .cmd                   = cmd_buffer,
         };
     }
 
-    void VulkanBackend::end_draw(DrawingContext context)
+    void VulkanBackend::end_draw(DrawingContext &context)
     {
-        auto [_, frame_index, image_index, cmd_buffer] = context;
-        auto &sync                                     = m_sync[frame_index];
+        auto  cmd_buffer  = context.cmd;
+        auto  frame_index = context.frame_index;
+        auto  image_index = context.swapchain_image_index;
+        auto &sync        = m_sync[frame_index];
 
         cmd_buffer.endRenderPass();
         cmd_buffer.end();
@@ -989,6 +1047,16 @@ namespace engine
         in_flight       = nullptr;
     }
 
+    void VulkanBackend::update_projection(float fov)
+    {
+        m_fov = fov;
+    }
+
+    void VulkanBackend::set_view(const glm::mat4 &transformation)
+    {
+        m_camera = transformation;
+    }
+
     shared_ptr<Object> VulkanBackend::load(span<primitives::GouraudVertex> vertices, span<uint32_t> indices)
     {
         constexpr vk::BufferUsageFlags BUFFER_USAGE = vk::BufferUsageFlagBits::eVertexBuffer
@@ -1015,7 +1083,7 @@ namespace engine
             memcpy(m_staging_buffer, vertices.data() + rdbuff_off, bytes);
             rdbuff_off += bytes;
 
-            m_staging_buffer.flush(m_allocator, 0, bytes);
+            m_staging_buffer.flush(*m_allocator, 0, bytes);
             m_staging_buffer.transfer(allocation.buffer, m_graphics_queue, 0, buffer_off, bytes);
             buffer_off += bytes;
         }
@@ -1031,7 +1099,7 @@ namespace engine
             memcpy(m_staging_buffer, indices.data() + rdbuff_off, bytes);
             rdbuff_off += bytes;
 
-            m_staging_buffer.flush(m_allocator, 0, bytes);
+            m_staging_buffer.flush(*m_allocator, 0, bytes);
             m_staging_buffer.transfer(allocation.buffer, m_graphics_queue, 0, buffer_off, bytes);
             buffer_off += bytes;
         }

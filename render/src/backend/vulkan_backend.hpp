@@ -2,6 +2,9 @@
 #include <vk_mem_alloc.h>
 #include <vulkan/vulkan.hpp>
 
+#include "allocation.hpp"
+#include "allocator.hpp"
+#include "descriptor_pool.hpp"
 #include "render_backend.hpp"
 #include "version.hpp"
 #include <GLFW/glfw3.h>
@@ -45,6 +48,12 @@ namespace engine
         void destroy(vk::Device device);
     };
 
+    struct ViewProjectionUniform
+    {
+        glm::mat4 view       = {};
+        glm::mat4 projection = {};
+    };
+
     /// Manages the data pertaining to a rendering pipeline.
     ///
     /// Must be owned by the window using it.
@@ -79,11 +88,14 @@ namespace engine
         };
 
       public:
+        void update_projection(float fov) override;
+        void set_view(const glm::mat4 &transformation) override;
+
         std::shared_ptr<Object> load(std::span<primitives::GouraudVertex> vertices,
                                      std::span<uint32_t>                  indices) override;
 
         std::optional<DrawingContext> begin_draw();
-        void                          end_draw(DrawingContext context);
+        void                          end_draw(DrawingContext &context);
 
         VulkanBackend(std::string_view application_name, Version application_version, GLFWwindow *window);
         VulkanBackend(const VulkanBackend &other, GLFWwindow *window);
@@ -113,28 +125,36 @@ namespace engine
         SharedInstanceManager           m_instance_manager = {};
         SharedDeviceManager             m_device_manager   = {};
 
-        static constexpr uint32_t      IN_FLIGHT           = 2;
-        uint32_t                       m_frame_index       = 0;
-        GLFWwindow                    *m_window            = {};
-        vk::Device                     m_device            = {};
-        vk::Queue                      m_graphics_queue    = {};
-        vk::Queue                      m_present_queue     = {};
-        vk::SurfaceKHR                 m_surface           = {};
-        vk::SwapchainKHR               m_swapchain         = {};
-        std::vector<vk::Image>         m_images            = {};
-        std::vector<vk::ImageView>     m_image_views       = {};
-        vk::RenderPass                 m_render_pass       = {};
-        vk::PipelineLayout             m_pipeline_layout   = {};
-        vk::Pipeline                   m_gouraud_pipeline  = {};
-        vk::Pipeline                   m_textured_pipeline = {};
-        std::vector<vk::Framebuffer>   m_framebuffers      = {};
-        vk::CommandPool                m_command_pool      = {};
-        std::vector<vk::CommandBuffer> m_command_buffers   = {};
-        std::vector<GpuSync>           m_sync              = {};
-        vk::ShaderModule               m_vertex_shader     = {};
-        vk::ShaderModule               m_fragment_shader   = {};
-        VmaAllocator                   m_allocator         = {};
-        StagingBuffer                  m_staging_buffer    = {};
+        static constexpr uint32_t IN_FLIGHT       = 2;
+        static constexpr uint32_t MAX_DESCRIPTORS = 32;
+
+        uint32_t                                     m_frame_index               = 0;
+        GLFWwindow                                  *m_window                    = {};
+        vk::Device                                   m_device                    = {};
+        vk::Queue                                    m_graphics_queue            = {};
+        vk::Queue                                    m_present_queue             = {};
+        vk::SurfaceKHR                               m_surface                   = {};
+        vk::SwapchainKHR                             m_swapchain                 = {};
+        std::vector<vk::Image>                       m_images                    = {};
+        std::vector<vk::ImageView>                   m_image_views               = {};
+        vk::RenderPass                               m_render_pass               = {};
+        vk::PipelineLayout                           m_pipeline_layout           = {};
+        vk::Pipeline                                 m_gouraud_pipeline          = {};
+        vk::Pipeline                                 m_textured_pipeline         = {};
+        std::vector<vk::Framebuffer>                 m_framebuffers              = {};
+        vk::CommandPool                              m_command_pool              = {};
+        std::vector<vk::CommandBuffer>               m_command_buffers           = {};
+        std::vector<GpuSync>                         m_sync                      = {};
+        vk::ShaderModule                             m_vertex_shader             = {};
+        vk::ShaderModule                             m_fragment_shader           = {};
+        vk::DescriptorSetLayout                      m_uniform_descriptor_layout = {};
+        std::shared_ptr<VulkanAllocator>             m_allocator                 = {};
+        StagingBuffer                                m_staging_buffer            = {};
+        std::array<DescriptorPoolManager, IN_FLIGHT> m_descriptor_pools          = {};
+
+        float                                                        m_fov        = 70.0;
+        glm::mat4                                                    m_camera     = {1.0};
+        TypedHostVisibleAllocation<ViewProjectionUniform[IN_FLIGHT]> m_vp_uniform = {};
 
         SwapchainConfiguration m_swapchain_config    = {};
         bool                   m_framebuffer_resized = false;
@@ -156,6 +176,10 @@ namespace engine
         void create_swapchain();
         /// Load the shaders
         void load_shaders();
+        /// Create the descriptor sets
+        void create_descriptor_set_layout();
+        /// Create the descriptor pool
+        void create_descriptor_pools();
         /// Create a rendering pipeline
         void create_render_pipeline();
         /// Create the framebuffers
@@ -168,6 +192,8 @@ namespace engine
         void create_sync_primitives();
         /// Initialize the allocator
         void initialize_device_memory_allocator();
+        /// Initialize other data
+        void finalize_init();
 
         void initialize_command_buffer(vk::CommandBuffer buffer, uint32_t image_index);
 
