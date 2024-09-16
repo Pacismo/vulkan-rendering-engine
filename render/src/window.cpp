@@ -86,7 +86,7 @@ namespace engine
         time_point last_draw      = system_clock::now();
         time_point next_print     = last_draw;
         time_point next_physics   = last_draw;
-        duration   physics_period = duration_cast<system_clock::duration>(duration<double>(1.0 / pproc_freq));
+        duration   physics_period = duration<double, seconds::period>(1.0 / pproc_freq);
 
         try {
             while (!glfwWindowShouldClose(mp_window)) {
@@ -98,7 +98,7 @@ namespace engine
 
                 if (now >= next_physics) {
                     physics_process(physics_period.count());
-                    next_physics = next_physics + physics_period;
+                    next_physics = next_physics + duration_cast<system_clock::duration>(physics_period);
                 }
 
                 time_point start = system_clock::now();
