@@ -14,7 +14,10 @@ namespace engine
       public:
         virtual ~Object() = default;
 
-        virtual void draw(struct DrawingContext &) = 0;
+        virtual void draw(struct DrawingContext &context, const glm::mat4 &parent_transform = {1.0}) = 0;
+
+        inline virtual void process(double delta) { }
+        inline virtual void physics_process(double delta) { }
 
         Transform transform;
 
