@@ -8,7 +8,8 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(GRT_ENGINE_NAME "Game Runtime")
 
 add_compile_definitions(DEBUG_ASSERTIONS=${DEBUG}
-						TERMINAL_ENABLED=${TERMINAL})
+						TERMINAL_ENABLED=${TERMINAL}
+						RADIANS=true)
 
 find_package(Vulkan REQUIRED)
 find_package(VulkanMemoryAllocator CONFIG REQUIRED)
