@@ -12,7 +12,8 @@ set(RENDER_SOURCES
     "include/object.hpp"
     "include/constants.hpp"
     "src/drawables/DrawingContext.hpp" 
-    "src/drawables/GouraudMesh.cpp"      "src/drawables/GouraudMesh.hpp")
+    "src/drawables/GouraudMesh.cpp"      "src/drawables/GouraudMesh.hpp"
+    "src/backend/descriptor_pool.cpp"    "src/backend/descriptor_pool.hpp" "src/backend/allocator.cpp")
 
 add_library(render ${RENDER_SOURCES})
 
