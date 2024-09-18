@@ -60,6 +60,10 @@
     {
       "name": "release",
       "configurePreset": "release"
+    },
+    {
+      "name": "release-no-terminal",
+      "configurePreset": "release-no-terminal"
     }
   ]
 }
