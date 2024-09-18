@@ -1,4 +1,4 @@
-#include "GouraudMesh.hpp"
+#include "drawables/GouraudMesh.hpp"
 #include <array>
 
 using std::array;

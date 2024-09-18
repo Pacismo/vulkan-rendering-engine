@@ -3,7 +3,7 @@
 #include "backend/device_manager.hpp"
 #include "backend/instance_manager.hpp"
 #include "backend/vulkan_backend.hpp"
-#include "drawables/DrawingContext.hpp"
+#include "drawables/drawing_context.hpp"
 #include "exceptions.hpp"
 #include "logger.hpp"
 #include "window.hpp"
@@ -68,7 +68,7 @@ namespace engine
         glfwSetWindowTitle(mp_window, new_title.data());
     }
 
-    std::shared_ptr<RenderBackend> Window::get_render_backend()
+    Window::SharedRenderManager Window::get_render_backend()
     {
         return m_render_manager;
     }

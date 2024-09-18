@@ -5,12 +5,16 @@
 #include "allocation.hpp"
 #include "allocator.hpp"
 #include "descriptor_pool.hpp"
-#include "render_backend.hpp"
+#include "drawables/GouraudMesh.hpp"
+#include "drawables/drawing_context.hpp"
+#include "object.hpp"
 #include "version.hpp"
+#include "vertex.hpp"
 #include <GLFW/glfw3.h>
 #include <forward_list>
 #include <memory>
 #include <optional>
+#include <span>
 #include <spdlog/spdlog.h>
 #include <string_view>
 
@@ -57,7 +61,7 @@ namespace engine
     /// Manages the data pertaining to a rendering pipeline.
     ///
     /// Must be owned by the window using it.
-    class VulkanBackend final : public RenderBackend
+    class VulkanBackend final
     {
         friend class Window;
         friend class GpuBufferWriter;
@@ -88,18 +92,17 @@ namespace engine
         };
 
       public:
-        void update_projection(float fov) override;
-        void set_view(const glm::mat4 &transformation) override;
+        void update_projection(float fov);
+        void set_view(const glm::mat4 &transformation);
 
-        std::shared_ptr<Object> load(std::span<primitives::GouraudVertex> vertices,
-                                     std::span<uint32_t>                  indices) override;
+        std::shared_ptr<class GouraudMesh> load(std::span<primitives::GouraudVertex> vertices, std::span<uint32_t> indices);
 
         std::optional<DrawingContext> begin_draw();
         void                          end_draw(DrawingContext &context);
 
         VulkanBackend(std::string_view application_name, Version application_version, GLFWwindow *window);
         VulkanBackend(const VulkanBackend &other, GLFWwindow *window);
-        ~VulkanBackend() override;
+        ~VulkanBackend();
 
         /// Make a new shared pointer to a RenderManager
         static Shared new_shared(std::string_view application_name, Version application_version, GLFWwindow *window);

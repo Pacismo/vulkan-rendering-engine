@@ -1,9 +1,9 @@
-#include "device_manager.hpp"
+#include "backend/device_manager.hpp"
+#include "backend/instance_manager.hpp"
 #include "exceptions.hpp"
 #include <GLFW/glfw3.h>
 #include <algorithm>
 #include <array>
-#include "instance_manager.hpp"
 #include <optional>
 #include <set>
 #include <tuple>
@@ -114,9 +114,9 @@ namespace engine
         };
 
         logger->info("Selected queue family {} for graphics queue ({:8X})", graphics_queue.index,
-                       (size_t)(VkQueue)graphics_queue.handle);
+                     (size_t)(VkQueue)graphics_queue.handle);
         logger->info("Selected queue family {} for present queue ({:8X})", present_queue.index,
-                       (size_t)(VkQueue)present_queue.handle);
+                     (size_t)(VkQueue)present_queue.handle);
     }
 
     RenderDeviceManager::~RenderDeviceManager()

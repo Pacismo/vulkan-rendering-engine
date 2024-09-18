@@ -1,11 +1,11 @@
-#include "vulkan_backend.hpp"
+#include "backend/vulkan_backend.hpp"
 
-#include "../logger.hpp"
-#include "descriptor_pool.hpp"
-#include "device_manager.hpp"
+#include "backend/descriptor_pool.hpp"
+#include "backend/device_manager.hpp"
+#include "backend/instance_manager.hpp"
+#include "backend/vertex_description.hpp"
 #include "exceptions.hpp"
-#include "instance_manager.hpp"
-#include "vertex_description.hpp"
+#include "logger.hpp"
 #include "window.hpp"
 #include <algorithm>
 #include <array>
@@ -15,7 +15,7 @@
 #include <span>
 #include <sstream>
 
-#include "../drawables/GouraudMesh.hpp"
+#include "drawables/GouraudMesh.hpp"
 
 #include "shaders.hpp"
 
@@ -1057,7 +1057,7 @@ namespace engine
         m_camera = transformation;
     }
 
-    shared_ptr<Object> VulkanBackend::load(span<primitives::GouraudVertex> vertices, span<uint32_t> indices)
+    shared_ptr<GouraudMesh> VulkanBackend::load(span<primitives::GouraudVertex> vertices, span<uint32_t> indices)
     {
         constexpr vk::BufferUsageFlags BUFFER_USAGE = vk::BufferUsageFlagBits::eVertexBuffer
                                                     | vk::BufferUsageFlagBits::eIndexBuffer
@@ -1106,7 +1106,7 @@ namespace engine
 
         m_staging_buffer.wait(m_device); // Wait for final transfer
 
-        return shared_ptr<Object>(new GouraudMesh(move(allocation), 0, vbuf_bytes, indices.size()));
+        return shared_ptr<GouraudMesh>(new GouraudMesh(move(allocation), 0, vbuf_bytes, indices.size()));
     }
 
     VulkanBackend::StagingBuffer::operator uint8_t *()

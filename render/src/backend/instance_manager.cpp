@@ -1,7 +1,7 @@
-#include "instance_manager.hpp"
-#include "device_manager.hpp"
+#include "backend/instance_manager.hpp"
+#include "backend/device_manager.hpp"
 #include "exceptions.hpp"
-#include "../logger.hpp"
+#include "logger.hpp"
 #include <GLFW/glfw3.h>
 #include <memory>
 #include <span>
