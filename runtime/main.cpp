@@ -27,10 +27,10 @@ const array<GouraudVertex, 8> VERTICES = {
     GouraudVertex { .position = {0.5, -0.5, 0.0}, .color = {0.0, 1.0, 0.0}},
     GouraudVertex {  .position = {0.5, 0.5, 0.0}, .color = {0.0, 0.0, 1.0}},
     GouraudVertex { .position = {-0.5, 0.5, 0.0}, .color = {1.0, 1.0, 1.0}},
-    GouraudVertex {.position = {-0.5, -0.5, 1.0}, .color = {1.0, 0.0, 0.0}},
-    GouraudVertex { .position = {0.5, -0.5, 1.0}, .color = {0.0, 1.0, 0.0}},
-    GouraudVertex {  .position = {0.5, 0.5, 1.0}, .color = {0.0, 0.0, 1.0}},
-    GouraudVertex { .position = {-0.5, 0.5, 1.0}, .color = {1.0, 1.0, 1.0}},
+    GouraudVertex {.position = {-0.5, -0.5, 1.0}, .color = {0.5, 0.0, 0.0}},
+    GouraudVertex { .position = {0.5, -0.5, 1.0}, .color = {0.0, 0.5, 0.0}},
+    GouraudVertex {  .position = {0.5, 0.5, 1.0}, .color = {0.0, 0.0, 0.5}},
+    GouraudVertex { .position = {-0.5, 0.5, 1.0}, .color = {0.5, 0.5, 0.5}},
 };
 
 const array<uint32_t, 36> INDICES = {
@@ -44,6 +44,8 @@ const array<uint32_t, 36> INDICES = {
 
 class Cube : public Object
 {
+    double motion = 0.0;
+
   public:
     Cube(std::shared_ptr<engine::VulkanBackend> &backend)
     {
@@ -51,15 +53,16 @@ class Cube : public Object
         auto indices  = INDICES;
 
         mesh                     = backend->load(vertices, indices);
-        mesh->transform.location = {0.0, 0.0, 0.0};
-
-        transform.location.z = -0.5;
+        mesh->transform.location = {0.0, 0.0, -0.5};
     }
 
     void physics_process(double delta) override
     {
-        float sqr            = transform.rotation.z + glm::radians(180.0) * delta;
-        transform.rotation.z = glm::mod<float>(sqr, glm::radians(360.0));
+        transform.rotation.z = glm::mod<float>(transform.rotation.z + glm::radians(180.0) * delta, glm::radians(360.0));
+        transform.rotation.y = glm::mod<float>(transform.rotation.y + glm::radians(90.0) * delta, glm::radians(360.0));
+
+        motion               = glm::mod<float>(motion + 1.0 * delta, 2.0);
+        transform.location.x = glm::abs(motion - 1.0) * 2.0 - 1.0;
     }
 
     void draw(engine::DrawingContext &context, const glm::mat4 &) override { mesh->draw(context, transform); }
