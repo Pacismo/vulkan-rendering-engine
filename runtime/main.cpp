@@ -1,4 +1,5 @@
 #include <algorithm>
+#include <backend/vulkan_backend.hpp>
 #include <chrono>
 #include <exceptions.hpp>
 #include <fmt/format.h>
@@ -7,6 +8,7 @@
 #include <span>
 #include <spdlog/sinks/stdout_color_sinks.h>
 #include <vertex.hpp>
+#include <vulkan/vulkan.hpp>
 #include <window.hpp>
 
 #if TERMINAL_ENABLED or not defined(WIN32)
@@ -43,7 +45,7 @@ const array<uint32_t, 36> INDICES = {
 class Cube : public Object
 {
   public:
-    Cube(std::shared_ptr<engine::RenderBackend> &backend)
+    Cube(std::shared_ptr<engine::VulkanBackend> &backend)
     {
         auto vertices = VERTICES;
         auto indices  = INDICES;
