@@ -46,6 +46,7 @@ namespace engine
         RenderDeviceManager &operator=(RenderDeviceManager &&)      = delete;
 
       public:
-        static std::span<const char *> get_required_device_extensions();
+        static std::span<const char *>     get_required_device_extensions();
+        static const vk::PhysicalDeviceFeatures &get_required_device_features();
     };
 } // namespace engine

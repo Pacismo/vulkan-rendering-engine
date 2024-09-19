@@ -10,7 +10,8 @@
 
 using std::tuple, std::optional, std::set, std::vector, std::array, std::span;
 
-static array<const char *, 1> REQUIRED_DEVICE_EXTENSIONS = {vk::KHRSwapchainExtensionName};
+static array<const char *, 1>     REQUIRED_DEVICE_EXTENSIONS = {vk::KHRSwapchainExtensionName};
+static vk::PhysicalDeviceFeatures REQUIRED_DEVICE_FEATURES   = {};
 
 namespace engine
 {
@@ -54,7 +55,8 @@ namespace engine
     {
         // Make sure that the device passed is available.
         if constexpr (DEBUG_ASSERTIONS) {
-            auto devices = instance_manager->get_supported_rendering_devices();
+            auto devices =
+                instance_manager->get_supported_rendering_devices(REQUIRED_DEVICE_EXTENSIONS, REQUIRED_DEVICE_FEATURES);
 
             auto idx = std::find(devices.begin(), devices.end(), physical_device);
             if (idx == devices.end())
@@ -87,8 +89,6 @@ namespace engine
                 .pQueuePriorities = &queue_priority,
             });
 
-        vk::PhysicalDeviceFeatures features = {};
-
         {
             vk::DeviceCreateInfo dci = {
                 .queueCreateInfoCount    = (uint32_t)queue_create_infos.size(),
@@ -97,7 +97,7 @@ namespace engine
                 .ppEnabledLayerNames     = nullptr,
                 .enabledExtensionCount   = (uint32_t)device_extensions.size(),
                 .ppEnabledExtensionNames = device_extensions.data(),
-                .pEnabledFeatures        = &features,
+                .pEnabledFeatures        = &REQUIRED_DEVICE_FEATURES,
             };
 
             device = physical_device.createDevice(dci);
@@ -136,6 +136,11 @@ namespace engine
     span<const char *> RenderDeviceManager::get_required_device_extensions()
     {
         return REQUIRED_DEVICE_EXTENSIONS;
+    }
+
+    const vk::PhysicalDeviceFeatures &RenderDeviceManager::get_required_device_features()
+    {
+        return REQUIRED_DEVICE_FEATURES;
     }
 
     RenderDeviceManager::Shared RenderDeviceManager::new_shared(SharedInstanceManager instance_manager,

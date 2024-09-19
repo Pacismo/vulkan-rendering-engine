@@ -29,14 +29,13 @@ namespace engine
         static Shared new_shared(std::string_view app_name, Version app_version);
 
         std::span<const vk::PhysicalDevice> get_available_physical_devices() const;
-        std::span<const vk::PhysicalDevice> get_supported_rendering_devices() const;
+        std::vector<vk::PhysicalDevice> get_supported_rendering_devices(std::span<const char *> extensions, const vk::PhysicalDeviceFeatures &features) const;
 
         std::shared_ptr<spdlog::logger> logger                      = {};
         vk::DispatchLoaderDynamic       dispatch                    = {};
         vk::Instance                    instance                    = {};
         vk::DebugUtilsMessengerEXT      messenger                   = {};
         std::vector<vk::PhysicalDevice> available_devices           = {};
-        std::vector<vk::PhysicalDevice> supported_rendering_devices = {};
 
       private:
         VulkanInstanceManager(std::string_view app_name, Version app_version);

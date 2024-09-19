@@ -263,7 +263,9 @@ namespace engine
     {
         m_instance_manager = VulkanInstanceManager::new_shared(application_name, application_version);
 
-        auto devices = get_properties(m_instance_manager->get_supported_rendering_devices());
+        auto devices = get_properties(
+            m_instance_manager->get_supported_rendering_devices(RenderDeviceManager::get_required_device_extensions(),
+                                                                RenderDeviceManager::get_required_device_features()));
         list_devices(m_instance_manager->logger, devices);
 
         m_surface = create_surface(m_instance_manager->instance, window);

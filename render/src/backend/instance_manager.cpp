@@ -104,19 +104,19 @@ namespace engine
         switch ((vk::DebugUtilsMessageSeverityFlagBitsEXT)severity) {
         case vk::DebugUtilsMessageSeverityFlagBitsEXT::eVerbose:
             p_vim->logger->info("Vulkan Debug Utils (Verbose/{}): {}\n{}", message_type, p_data->pMessageIdName,
-                                  p_data->pMessage);
+                                p_data->pMessage);
             break;
         case vk::DebugUtilsMessageSeverityFlagBitsEXT::eInfo:
             p_vim->logger->trace("Vulkan Debug Utils (Info/{}): {}\n{}", message_type, p_data->pMessageIdName,
-                                   p_data->pMessage);
+                                 p_data->pMessage);
             break;
         case vk::DebugUtilsMessageSeverityFlagBitsEXT::eWarning:
             p_vim->logger->warn("Vulkan Debug Utils (Warning/{}): {}\n{}", message_type, p_data->pMessageIdName,
-                                  p_data->pMessage);
+                                p_data->pMessage);
             break;
         case vk::DebugUtilsMessageSeverityFlagBitsEXT::eError:
             p_vim->logger->error("Vulkan Debug Utils (Error/{}): {}\n{}", message_type, p_data->pMessageIdName,
-                                   p_data->pMessage);
+                                 p_data->pMessage);
             break;
         }
         return VK_FALSE;
@@ -135,11 +135,95 @@ namespace engine
         return available_devices;
     }
 
-    std::span<const vk::PhysicalDevice> VulkanInstanceManager::get_supported_rendering_devices() const
+    vector<vk::PhysicalDevice> VulkanInstanceManager::get_supported_rendering_devices(
+        std::span<const char *> extensions, const vk::PhysicalDeviceFeatures &features) const
     {
-        if (!instance)
-            throw Exception("Not initialized");
-        return supported_rendering_devices;
+        vector<vk::PhysicalDevice> supported_devices = {};
+
+        // Get a list of supported devices
+        for (vk::PhysicalDevice device : available_devices) {
+            auto available_extensions = device.enumerateDeviceExtensionProperties();
+            auto available_features   = device.getFeatures();
+
+            bool extensions_supported = true;
+
+            for (auto extension : extensions) {
+                bool found = false;
+                for (auto &available : available_extensions)
+                    if (strcmp(extension, available.extensionName.data()) == 0) {
+                        found = true;
+                        break;
+                    }
+
+                if (!found) {
+                    extensions_supported = false;
+                    break;
+                }
+            }
+
+#define IS_FEATURE_SUPPORTED(feature) (features.feature != 0) ? (available_features.feature != 0) : true
+            bool features_supported = IS_FEATURE_SUPPORTED(robustBufferAccess)                      //
+                                   && IS_FEATURE_SUPPORTED(fullDrawIndexUint32)                     //
+                                   && IS_FEATURE_SUPPORTED(imageCubeArray)                          //
+                                   && IS_FEATURE_SUPPORTED(independentBlend)                        //
+                                   && IS_FEATURE_SUPPORTED(geometryShader)                          //
+                                   && IS_FEATURE_SUPPORTED(tessellationShader)                      //
+                                   && IS_FEATURE_SUPPORTED(sampleRateShading)                       //
+                                   && IS_FEATURE_SUPPORTED(dualSrcBlend)                            //
+                                   && IS_FEATURE_SUPPORTED(logicOp)                                 //
+                                   && IS_FEATURE_SUPPORTED(multiDrawIndirect)                       //
+                                   && IS_FEATURE_SUPPORTED(drawIndirectFirstInstance)               //
+                                   && IS_FEATURE_SUPPORTED(depthClamp)                              //
+                                   && IS_FEATURE_SUPPORTED(depthBiasClamp)                          //
+                                   && IS_FEATURE_SUPPORTED(fillModeNonSolid)                        //
+                                   && IS_FEATURE_SUPPORTED(depthBounds)                             //
+                                   && IS_FEATURE_SUPPORTED(wideLines)                               //
+                                   && IS_FEATURE_SUPPORTED(largePoints)                             //
+                                   && IS_FEATURE_SUPPORTED(alphaToOne)                              //
+                                   && IS_FEATURE_SUPPORTED(multiViewport)                           //
+                                   && IS_FEATURE_SUPPORTED(samplerAnisotropy)                       //
+                                   && IS_FEATURE_SUPPORTED(textureCompressionETC2)                  //
+                                   && IS_FEATURE_SUPPORTED(textureCompressionASTC_LDR)              //
+                                   && IS_FEATURE_SUPPORTED(textureCompressionBC)                    //
+                                   && IS_FEATURE_SUPPORTED(occlusionQueryPrecise)                   //
+                                   && IS_FEATURE_SUPPORTED(pipelineStatisticsQuery)                 //
+                                   && IS_FEATURE_SUPPORTED(vertexPipelineStoresAndAtomics)          //
+                                   && IS_FEATURE_SUPPORTED(fragmentStoresAndAtomics)                //
+                                   && IS_FEATURE_SUPPORTED(shaderTessellationAndGeometryPointSize)  //
+                                   && IS_FEATURE_SUPPORTED(shaderImageGatherExtended)               //
+                                   && IS_FEATURE_SUPPORTED(shaderStorageImageExtendedFormats)       //
+                                   && IS_FEATURE_SUPPORTED(shaderStorageImageMultisample)           //
+                                   && IS_FEATURE_SUPPORTED(shaderStorageImageReadWithoutFormat)     //
+                                   && IS_FEATURE_SUPPORTED(shaderStorageImageWriteWithoutFormat)    //
+                                   && IS_FEATURE_SUPPORTED(shaderUniformBufferArrayDynamicIndexing) //
+                                   && IS_FEATURE_SUPPORTED(shaderSampledImageArrayDynamicIndexing)  //
+                                   && IS_FEATURE_SUPPORTED(shaderStorageBufferArrayDynamicIndexing) //
+                                   && IS_FEATURE_SUPPORTED(shaderStorageImageArrayDynamicIndexing)  //
+                                   && IS_FEATURE_SUPPORTED(shaderClipDistance)                      //
+                                   && IS_FEATURE_SUPPORTED(shaderCullDistance)                      //
+                                   && IS_FEATURE_SUPPORTED(shaderFloat64)                           //
+                                   && IS_FEATURE_SUPPORTED(shaderInt64)                             //
+                                   && IS_FEATURE_SUPPORTED(shaderInt16)                             //
+                                   && IS_FEATURE_SUPPORTED(shaderResourceResidency)                 //
+                                   && IS_FEATURE_SUPPORTED(shaderResourceMinLod)                    //
+                                   && IS_FEATURE_SUPPORTED(sparseBinding)                           //
+                                   && IS_FEATURE_SUPPORTED(sparseResidencyBuffer)                   //
+                                   && IS_FEATURE_SUPPORTED(sparseResidencyImage2D)                  //
+                                   && IS_FEATURE_SUPPORTED(sparseResidencyImage3D)                  //
+                                   && IS_FEATURE_SUPPORTED(sparseResidency2Samples)                 //
+                                   && IS_FEATURE_SUPPORTED(sparseResidency4Samples)                 //
+                                   && IS_FEATURE_SUPPORTED(sparseResidency8Samples)                 //
+                                   && IS_FEATURE_SUPPORTED(sparseResidency16Samples)                //
+                                   && IS_FEATURE_SUPPORTED(sparseResidencyAliased)                  //
+                                   && IS_FEATURE_SUPPORTED(variableMultisampleRate)                 //
+                                   && IS_FEATURE_SUPPORTED(inheritedQueries);                       //
+#undef IS_FEATURE_SUPPORTED
+
+            if (extensions_supported && features_supported)
+                supported_devices.push_back(device);
+        }
+
+        return supported_devices;
     }
 
     VulkanInstanceManager::VulkanInstanceManager(string_view app_name, Version app_version)
@@ -209,36 +293,7 @@ namespace engine
             logger->info("Created debug utils messenger");
         }
 
-        {
-            auto available_devices = instance.enumeratePhysicalDevices();
-
-            span<const char *> required_device_extensions = RenderDeviceManager::get_required_device_extensions();
-            vector<vk::PhysicalDevice> supported_devices  = {};
-
-            // Get a list of supported devices
-            for (vk::PhysicalDevice device : available_devices) {
-                auto available_extensions = device.enumerateDeviceExtensionProperties();
-
-                bool supported = true;
-
-                for (auto extension : required_device_extensions) {
-                    bool found = false;
-                    for (auto &available : available_extensions)
-                        if (strcmp(extension, available.extensionName.data()) == 0) {
-                            found = true;
-                            break;
-                        }
-
-                    supported &= found;
-                }
-
-                if (supported)
-                    supported_devices.push_back(device);
-            }
-
-            available_devices           = std::move(available_devices);
-            supported_rendering_devices = std::move(supported_devices);
-        }
+        available_devices = instance.enumeratePhysicalDevices();
     }
 
     VulkanInstanceManager::~VulkanInstanceManager()
@@ -252,7 +307,6 @@ namespace engine
         logger->info("Cleaned up Vulkan instance manager");
 
         available_devices.clear();
-        supported_rendering_devices.clear();
         messenger = nullptr;
         instance  = nullptr;
     }
