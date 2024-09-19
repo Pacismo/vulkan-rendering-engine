@@ -26,4 +26,31 @@ namespace engine
 
         inline operator glm::mat4() const { return get_transform_matrix(); }
     };
+
+    struct CameraTransform
+    {
+        glm::vec3 location = {0.0, 0.0, 0.0};
+        glm::vec2 rotation = {0.0, 0.0};
+
+        static constexpr glm::vec3 forward = Y_AXIS;
+        static constexpr glm::vec3 up      = Z_AXIS;
+        static constexpr glm::vec3 right   = glm::cross(forward, up);
+
+        inline glm::vec3 get_forward_vector() const
+        {
+            return glm::normalize(glm::vec3(get_facing_matrix() * glm::vec4(forward, 1.0)));
+        }
+
+        inline glm::mat4 get_facing_matrix() const
+        {
+            return glm::rotate(glm::rotate(glm::mat4 {1.0}, rotation.x, up), rotation.y, right);
+        }
+
+        inline glm::mat4 get_transformation_matrix() const
+        {
+            return glm::lookAt(location, location + get_forward_vector(), up);
+        }
+
+        inline operator glm::mat4() const { return get_transformation_matrix(); }
+    };
 } // namespace engine
