@@ -32,9 +32,9 @@ namespace engine
         glm::vec3 location = {0.0, 0.0, 0.0};
         glm::vec2 rotation = {0.0, 0.0};
 
-        static constexpr glm::vec3 forward = Y_AXIS;
         static constexpr glm::vec3 up      = Z_AXIS;
-        static constexpr glm::vec3 right   = glm::cross(forward, up);
+        static constexpr glm::vec3 forward = Y_AXIS;
+        static constexpr glm::vec3 right   = X_AXIS;
 
         inline glm::vec3 get_forward_vector() const
         {
