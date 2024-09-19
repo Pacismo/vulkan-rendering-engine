@@ -18,7 +18,7 @@
 #endif
 
 using namespace std::chrono_literals;
-using engine::primitives::GouraudVertex, engine::Object, engine::Transform;
+using engine::primitives::GouraudVertex, engine::Object, engine::Transform, engine::CameraTransform;
 using std::shared_ptr, std::initializer_list, engine::Window, std::string_view, std::array, std::chrono::time_point,
     std::chrono::system_clock, std::list, std::shared_ptr;
 
@@ -57,7 +57,6 @@ class Cube : public Object
     void physics_process(double delta) override
     {
         transform.rotation.z = glm::mod<float>(transform.rotation.z + glm::radians(180.0) * delta, glm::radians(360.0));
-        transform.rotation.y = glm::mod<float>(transform.rotation.y + glm::radians(50.0) * delta, glm::radians(360.0));
     }
 
     void draw(engine::DrawingContext &context, const glm::mat4 &) override { mesh->draw(context, transform); }
@@ -76,13 +75,74 @@ class ExampleWindow : public Window
         cube = shared_ptr<Cube>(new Cube(rb));
         objects.push_back(cube);
 
-        rb->set_view(glm::lookAt<float, glm::highp>({2.0f, 2.0f, 2.0f}, {0.0f, 0.0f, 0.0f}, {0.0f, 0.0f, -1.0f}));
+        camera.location = {2.0, 2.0, 2.0};
+        camera.rotation = {glm::radians(135.0), glm::radians(-35.0)};
+
+        if (glfwRawMouseMotionSupported()) {
+            glfwSetInputMode(m_window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+            glfwSetInputMode(m_window, GLFW_RAW_MOUSE_MOTION, GLFW_TRUE);
+        }
+
+        // Force a poll to update values
+        glfwPollEvents();
+        glfwGetCursorPos(m_window, &last_x, &last_y);
+
+        glfwSetCursorPosCallback(m_window, [](GLFWwindow *p_wnd, double x, double y) {
+            constexpr glm::vec2 COEFFICIENT = {-0.01, -0.01};
+
+            ExampleWindow *window = (ExampleWindow *)glfwGetWindowUserPointer(p_wnd);
+
+            double dx      = x - window->last_x;
+            double dy      = y - window->last_y;
+            window->last_x = x;
+            window->last_y = y;
+
+            window->camera.rotation.x = glm::mod(window->camera.rotation.x + dx * COEFFICIENT.x, glm::radians(360.0));
+            window->camera.rotation.y =
+                glm::clamp(window->camera.rotation.y + dy * COEFFICIENT.y, glm::radians(-89.9), glm::radians(89.9));
+        });
+
+        rb->set_view(camera);
     }
+
+    static constexpr float MOTION_SPEED = 1.0;
 
     void process(double delta) override
     {
+        if (glfwGetKey(m_window, GLFW_KEY_ESCAPE))
+            glfwSetWindowShouldClose(m_window, GLFW_TRUE);
+
+        glm::vec3 transform = {0.0, 0.0, 0.0};
+        if (glfwGetKey(m_window, GLFW_KEY_W))
+            transform.y = +1.0;
+        if (glfwGetKey(m_window, GLFW_KEY_S))
+            transform.y = -1.0;
+        if (glfwGetKey(m_window, GLFW_KEY_A))
+            transform.x = -1.0;
+        if (glfwGetKey(m_window, GLFW_KEY_D))
+            transform.x = +1.0;
+        if (glfwGetKey(m_window, GLFW_KEY_Q))
+            transform.z = +1.0;
+        if (glfwGetKey(m_window, GLFW_KEY_E))
+            transform.z = -1.0;
+
+        if (glm::dot(transform, transform) > FLT_EPSILON) {
+            float magnitude = MOTION_SPEED * delta;
+            if (glfwGetKey(m_window, GLFW_KEY_LEFT_SHIFT))
+                magnitude *= 2.0;
+
+            camera.location +=
+                glm::normalize(glm::vec3(camera.get_facing_matrix() * glm::vec4(transform, 1.0))) * magnitude;
+        }
+        get_render_backend()->set_view(camera);
+
         for (auto &object : objects)
             object->physics_process(delta);
+
+        std::string new_title =
+            fmt::format("[{:3.3F}, {:3.3F}] [{:3.3F}, {:3.3F}, {:3.3F}]", glm::degrees(camera.rotation.x),
+                        glm::degrees(camera.rotation.y), camera.location.x, camera.location.y, camera.location.z);
+        glfwSetWindowTitle(m_window, new_title.c_str());
     }
 
     void handle_draw(struct engine::DrawingContext &ctx) override
@@ -90,6 +150,10 @@ class ExampleWindow : public Window
         for (auto &obj : objects)
             obj->draw(ctx);
     }
+
+    CameraTransform camera;
+    double          last_x = 0.0;
+    double          last_y = 0.0;
 
     shared_ptr<Cube> cube = nullptr;
 
