@@ -32,40 +32,40 @@ namespace engine
             throw GlfwException("Failed to initialize GLFW");
 
         glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
-        mp_window = glfwCreateWindow(width, height, title.data(), nullptr, nullptr);
-        if (!mp_window)
+        m_window = glfwCreateWindow(width, height, title.data(), nullptr, nullptr);
+        if (!m_window)
             throw GlfwException("Failed to create a new window");
-        glfwSetWindowUserPointer(mp_window, this);
+        glfwSetWindowUserPointer(m_window, this);
         m_logger->info("Created window");
 
-        m_render_manager = VulkanBackend::new_shared(application_name, application_version, mp_window);
+        m_render_manager = VulkanBackend::new_shared(application_name, application_version, m_window);
     }
 
     Window::Window(string_view title, int32_t width, int32_t height, const Window &other)
         : m_logger(other.m_logger)
     {
         glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
-        mp_window = glfwCreateWindow(width, height, title.data(), nullptr, nullptr);
-        if (!mp_window)
+        m_window = glfwCreateWindow(width, height, title.data(), nullptr, nullptr);
+        if (!m_window)
             throw GlfwException("Failed to create a new window");
         m_logger->info("Created window");
 
-        m_render_manager = VulkanBackend::new_shared(other.m_render_manager, mp_window);
+        m_render_manager = VulkanBackend::new_shared(other.m_render_manager, m_window);
     }
 
     void Window::show()
     {
-        glfwShowWindow(mp_window);
+        glfwShowWindow(m_window);
     }
 
     void Window::hide()
     {
-        glfwHideWindow(mp_window);
+        glfwHideWindow(m_window);
     }
 
     void Window::set_title(string_view new_title)
     {
-        glfwSetWindowTitle(mp_window, new_title.data());
+        glfwSetWindowTitle(m_window, new_title.data());
     }
 
     Window::SharedRenderManager Window::get_render_backend()
@@ -89,7 +89,7 @@ namespace engine
         duration   physics_period = duration<double, seconds::period>(1.0 / pproc_freq);
 
         try {
-            while (!glfwWindowShouldClose(mp_window)) {
+            while (!glfwWindowShouldClose(m_window)) {
                 time_point now          = system_clock::now();
                 duration   render_delta = duration_cast<duration<double>>(now - last_draw);
 
@@ -133,9 +133,9 @@ namespace engine
     {
         m_render_manager = nullptr;
 
-        if (mp_window)
-            glfwDestroyWindow(mp_window);
-        mp_window = nullptr;
+        if (m_window)
+            glfwDestroyWindow(m_window);
+        m_window = nullptr;
     }
 
     Window::Window(Window &&other) noexcept
