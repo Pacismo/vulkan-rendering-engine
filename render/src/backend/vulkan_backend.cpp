@@ -696,7 +696,7 @@ namespace engine
             .rasterizerDiscardEnable = false,
             .polygonMode             = vk::PolygonMode::eFill,
             .cullMode                = vk::CullModeFlagBits::eBack,
-            .frontFace               = vk::FrontFace::eCounterClockwise,
+            .frontFace               = vk::FrontFace::eClockwise,
             .depthBiasEnable         = false,
             .depthBiasConstantFactor = 0.0,
             .depthBiasClamp          = 0.0,
@@ -909,9 +909,10 @@ namespace engine
 
         m_vp_uniform[frame] = {
             .view       = m_camera,
-            .projection = glm::perspectiveFov<float>(glm::radians(m_fov), m_swapchain_config.extent.width,
+            .projection = glm::perspectiveFovZO<float>(glm::radians(m_fov), m_swapchain_config.extent.width,
                                                      m_swapchain_config.extent.height, 0.1, 10.0),
         };
+        m_vp_uniform[frame].projection[1][1] *= -1.0f;
         m_vp_uniform.flush();
 
         m_descriptor_pools[frame].reset();
