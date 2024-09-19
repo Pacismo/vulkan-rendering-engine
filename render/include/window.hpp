@@ -48,7 +48,7 @@ namespace engine
         Window &operator=(Window &&) noexcept;
 
       protected:
-        GLFWwindow *mp_window = {};
+        GLFWwindow *m_window = {};
 
       private:
         std::shared_ptr<spdlog::logger> m_logger;
