@@ -17,6 +17,11 @@
 
 namespace engine
 {
+    /**
+     * @brief Base class for all windows.
+     * 
+     * Fully constructs the necessary components to render objects to the screen.
+     */
     class Window
     {
         friend class VulkanBackend;
