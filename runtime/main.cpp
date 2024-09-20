@@ -18,7 +18,8 @@
 #endif
 
 using namespace std::chrono_literals;
-using engine::primitives::GouraudVertex, engine::Object, engine::Transform, engine::CameraTransform;
+using engine::primitives::GouraudVertex, engine::Object, engine::Transform, engine::CameraTransform,
+    engine::KeyboardKey, engine::KeyAction, engine::ModifierKey, engine::contains;
 using std::shared_ptr, std::initializer_list, engine::Window, std::string_view, std::array, std::chrono::time_point,
     std::chrono::system_clock, std::list, std::shared_ptr;
 
@@ -83,48 +84,37 @@ class ExampleWindow : public Window
             glfwSetInputMode(m_window, GLFW_RAW_MOUSE_MOTION, GLFW_TRUE);
         }
 
-        // Force a poll to update values
-        glfwPollEvents();
-        glfwGetCursorPos(m_window, &last_x, &last_y);
-
-        glfwSetCursorPosCallback(m_window, [](GLFWwindow *p_wnd, double x, double y) {
-            constexpr glm::vec2 COEFFICIENT = {-0.01, -0.01};
-
-            ExampleWindow *window = (ExampleWindow *)glfwGetWindowUserPointer(p_wnd);
-
-            double dx      = x - window->last_x;
-            double dy      = y - window->last_y;
-            window->last_x = x;
-            window->last_y = y;
-
-            window->camera.rotation.x = glm::mod(window->camera.rotation.x + dx * COEFFICIENT.x, glm::radians(360.0));
-            window->camera.rotation.y =
-                glm::clamp(window->camera.rotation.y + dy * COEFFICIENT.y, glm::radians(-89.9), glm::radians(89.9));
-        });
-
         rb->set_view(camera);
     }
 
-    static constexpr float MOTION_SPEED = 1.0;
+    void on_key_action(KeyboardKey key, ModifierKey mods, KeyAction action, int scancode) override
+    {
+        using KeyboardKey::W, KeyboardKey::A, KeyboardKey::S, KeyboardKey::D, KeyboardKey::LeftShift,
+            KeyboardKey::Escape;
+
+        switch (key) {
+        case Escape:
+            close();
+            break;
+        default:
+            break;
+        }
+    }
+
+    void on_cursor_motion(double x, double y, double dx, double dy) override
+    {
+        constexpr glm::vec2 COEFFICIENT = {-0.01, -0.01};
+
+        camera.rotation.x = glm::mod(camera.rotation.x + dx * COEFFICIENT.x, glm::radians(360.0));
+        camera.rotation.y = glm::clamp(camera.rotation.y + dy * COEFFICIENT.y, glm::radians(-89.9), glm::radians(89.9));
+    }
+
+    static constexpr float MOTION_SPEED = 2.5;
 
     void process(double delta) override
     {
-        if (glfwGetKey(m_window, GLFW_KEY_ESCAPE))
-            glfwSetWindowShouldClose(m_window, GLFW_TRUE);
-
-        glm::vec3 transform = {0.0, 0.0, 0.0};
-        if (glfwGetKey(m_window, GLFW_KEY_W))
-            transform.y = +1.0;
-        if (glfwGetKey(m_window, GLFW_KEY_S))
-            transform.y = -1.0;
-        if (glfwGetKey(m_window, GLFW_KEY_A))
-            transform.x = -1.0;
-        if (glfwGetKey(m_window, GLFW_KEY_D))
-            transform.x = +1.0;
-        if (glfwGetKey(m_window, GLFW_KEY_Q))
-            transform.z = +1.0;
-        if (glfwGetKey(m_window, GLFW_KEY_E))
-            transform.z = -1.0;
+        glm::vec3 transform = {get_axis(KeyboardKey::D, KeyboardKey::A, KeyboardKey::W, KeyboardKey::S),
+                               get_magnitude(KeyboardKey::Q, KeyboardKey::E)};
 
         if (glm::dot(transform, transform) > FLT_EPSILON) {
             float magnitude = MOTION_SPEED * delta;
@@ -151,12 +141,8 @@ class ExampleWindow : public Window
             obj->draw(ctx);
     }
 
-    CameraTransform camera;
-    double          last_x = 0.0;
-    double          last_y = 0.0;
-
-    shared_ptr<Cube> cube = nullptr;
-
+    CameraTransform          camera;
+    shared_ptr<Cube>         cube    = nullptr;
     list<shared_ptr<Object>> objects = {};
 };
 
