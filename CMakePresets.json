@@ -1,5 +1,6 @@
 {
-  "version": 6,
+  "$schema": "https://cmake.org/cmake/help/latest/_downloads/3e2d73bff478d88a7de0de736ba5e361/schema.json",
+  "version": 8,
   "cmakeMinimumRequired": {
     "major": 3,
     "minor": 30,
@@ -7,63 +8,111 @@
   },
   "configurePresets": [
     {
-      "name": "debug",
-      "displayName": "Debug",
-      "description": "Sets Ninja generator, build and install directory",
+      "name": "base",
+      "hidden": true,
       "generator": "Ninja",
       "binaryDir": "${sourceDir}/build/${presetName}",
       "cacheVariables": {
-        "CMAKE_BUILD_TYPE": "Debug",
         "CMAKE_EXPORT_COMPILE_COMMANDS": true,
         "CMAKE_TOOLCHAIN_FILE": "vcpkg/scripts/buildsystems/vcpkg.cmake",
-        "CMAKE_INSTALL_PREFIX": "${sourceDir}/install/${presetName}",
+        "CMAKE_INSTALL_PREFIX": "${sourceDir}/install/${presetName}"
+      }
+    },
+    {
+      "name": "x86-windows",
+      "inherits": "base",
+      "hidden": true,
+      "cacheVariables": {
+        "VCPKG_TARGET_TRIPLET": "x86-windows"
+      }
+    },
+    {
+      "name": "x64-windows",
+      "inherits": "base",
+      "hidden": true,
+      "cacheVariables": {
+        "VCPKG_TARGET_TRIPLET": "x64-windows"
+      }
+    },
+    {
+      "name": "x86-static-windows",
+      "inherits": "base",
+      "hidden": true,
+      "cacheVariables": {
+        "VCPKG_TARGET_TRIPLET": "x86-windows-static-md"
+      }
+    },
+    {
+      "name": "x64-static-windows",
+      "inherits": "base",
+      "hidden": true,
+      "cacheVariables": {
+        "VCPKG_TARGET_TRIPLET": "x64-windows-static-md"
+      }
+    },
+    {
+      "name": "x86-linux",
+      "inherits": "base",
+      "hidden": true,
+      "cacheVariables": {
+        "VCPKG_TARGET_TRIPLET": "x86-linux"
+      }
+    },
+    {
+      "name": "x64-linux",
+      "inherits": "base",
+      "hidden": true,
+      "cacheVariables": {
+        "VCPKG_TARGET_TRIPLET": "x64-linux"
+      }
+    },
+    {
+      "name": "debug-x64ws",
+      "inherits": "x64-static-windows",
+      "displayName": "Debug (x64-Static)",
+      "description": "Sets Ninja generator, build and install directory",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
         "DEBUG": "1",
         "TERMINAL": "1"
       }
     },
     {
-      "name": "release",
-      "displayName": "Release",
+      "name": "release-x64ws",
+      "inherits": "x64-static-windows",
+      "displayName": "Release (x64-Static)",
       "description": "Sets Ninja generator, build and install directory",
-      "generator": "Ninja",
-      "binaryDir": "${sourceDir}/build/${presetName}",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Release",
-        "CMAKE_EXPORT_COMPILE_COMMANDS": true,
-        "CMAKE_TOOLCHAIN_FILE": "vcpkg/scripts/buildsystems/vcpkg.cmake",
-        "CMAKE_INSTALL_PREFIX": "${sourceDir}/install/${presetName}",
         "DEBUG": "0",
         "TERMINAL": "1"
       }
     },
     {
-      "name": "release-no-terminal",
-      "displayName": "Release (No Terminal)",
+      "name": "release-x64ws-noterm",
+      "inherits": "release-x64ws",
+      "displayName": "Release (x64-Static, No Terminal)",
       "description": "Release build without a terminal",
-      "generator": "Ninja",
-      "binaryDir": "${sourceDir}/build/${presetName}",
       "cacheVariables": {
-        "CMAKE_BUILD_TYPE": "Release",
-        "CMAKE_EXPORT_COMPILE_COMMANDS": true,
-        "CMAKE_TOOLCHAIN_FILE": "vcpkg/scripts/buildsystems/vcpkg.cmake",
-        "CMAKE_INSTALL_PREFIX": "${sourceDir}/install/${presetName}",
-        "DEBUG": "0",
         "TERMINAL": "0"
       }
     }
   ],
   "buildPresets": [
     {
-      "name": "debug",
-      "configurePreset": "debug"
+      "name": "debug-x64-static",
+      "configurePreset": "debug-x64ws",
+      "displayName": "Debug (x64-Static)"
     },
     {
-      "name": "release",
-      "configurePreset": "release"
+      "name": "release-x64-static",
+      "configurePreset": "release-x64ws",
+      "displayName": "Release (x64-Static)"
     },
     {
-      "name": "release-no-terminal",
-      "configurePreset": "release-no-terminal"
+      "name": "release-x64-static-noterm",
+      "configurePreset": "release-x64ws-noterm",
+      "displayName": "Release (x64-Static, No Terminal)"
     }
   ]
 }
