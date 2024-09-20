@@ -35,8 +35,9 @@ namespace engine
         m_window = glfwCreateWindow(width, height, title.data(), nullptr, nullptr);
         if (!m_window)
             throw GlfwException("Failed to create a new window");
-        glfwSetWindowUserPointer(m_window, this);
         m_logger->info("Created window");
+
+        set_glfw_callbacks();
 
         m_render_manager = VulkanBackend::new_shared(application_name, application_version, m_window);
     }
@@ -49,6 +50,8 @@ namespace engine
         if (!m_window)
             throw GlfwException("Failed to create a new window");
         m_logger->info("Created window");
+
+        set_glfw_callbacks();
 
         m_render_manager = VulkanBackend::new_shared(other.m_render_manager, m_window);
     }
@@ -63,6 +66,26 @@ namespace engine
         glfwHideWindow(m_window);
     }
 
+    glm::vec2 Window::get_axis(KeyboardKey px, KeyboardKey nx, KeyboardKey py, KeyboardKey ny)
+    {
+        glm::vec2 axis(get_magnitude(px, nx), get_magnitude(py, ny));
+
+        if (glm::abs(axis.x) + glm::abs(axis.y) > FLT_EPSILON)
+            return glm::normalize(axis);
+        else
+            return {0.0, 0.0};
+    }
+
+    float Window::get_magnitude(KeyboardKey p, KeyboardKey n)
+    {
+        return glfwGetKey(m_window, (int)p) - glfwGetKey(m_window, (int)n);
+    }
+
+    void Window::close(bool should_close)
+    {
+        glfwSetWindowShouldClose(m_window, should_close);
+    }
+
     void Window::set_title(string_view new_title)
     {
         glfwSetWindowTitle(m_window, new_title.data());
@@ -72,6 +95,12 @@ namespace engine
     {
         return m_render_manager;
     }
+
+    void Window::on_key_action(KeyboardKey key, ModifierKey modifiers, KeyAction action, int scancode) { }
+
+    void Window::on_mouse_button_action(MouseButton button, ModifierKey modifiers, KeyAction action) { }
+
+    void Window::on_cursor_motion(double x, double y, double dx, double dy) { }
 
     void Window::process(double delta) { }
 
@@ -143,11 +172,47 @@ namespace engine
         , m_render_manager(move(m_render_manager))
 
     { }
+
     Window &Window::operator=(Window &&other) noexcept
     {
         swap(m_logger, other.m_logger);
         swap(m_render_manager, other.m_render_manager);
 
         return *this;
+    }
+
+    void Window::set_glfw_callbacks()
+    {
+        glfwSetWindowUserPointer(m_window, this);
+
+        // Force a poll and get the initial mouse coordinates (to avoid instant view snapping)
+        glfwPollEvents();
+        glfwGetCursorPos(m_window, &last_mouse_x, &last_mouse_y);
+
+        glfwSetKeyCallback(m_window, key_callback);
+        glfwSetMouseButtonCallback(m_window, mouse_button_callback);
+        glfwSetCursorPosCallback(m_window, cursor_pos_callback);
+    }
+
+    void Window::key_callback(GLFWwindow *p_wnd, int key, int action, int scancode, int mods)
+    {
+        Window *window = (Window *)glfwGetWindowUserPointer(p_wnd);
+        window->on_key_action(KeyboardKey(key), ModifierKey(mods), KeyAction(action), scancode);
+    }
+
+    void Window::mouse_button_callback(GLFWwindow *p_wnd, int button, int action, int mods)
+    {
+        Window *window = (Window *)glfwGetWindowUserPointer(p_wnd);
+        window->on_mouse_button_action(MouseButton(button), ModifierKey(mods), KeyAction(action));
+    }
+
+    void Window::cursor_pos_callback(GLFWwindow *p_wnd, double xpos, double ypos)
+    {
+        Window *window       = (Window *)glfwGetWindowUserPointer(p_wnd);
+        double  dx           = xpos - window->last_mouse_x;
+        double  dy           = ypos - window->last_mouse_y;
+        window->last_mouse_x = xpos;
+        window->last_mouse_y = ypos;
+        window->on_cursor_motion(xpos, ypos, dx, dy);
     }
 } // namespace engine
