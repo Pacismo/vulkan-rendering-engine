@@ -31,19 +31,16 @@ elseif(UNIX)
 	set(COMPSHDR "${TOOLS_DIR}/bin/compshdr")
 endif()
 
-add_custom_target(Bintool
-				  "cargo" "install" "--path" "${GRT_SOURCE_DIR}/tools/bintool" "--root" "${TOOLS_DIR}"
-				  BYPRODUCTS "${BINTOOL}"
-				  SOURCES "${GRT_SOURCE_DIR}/tools/bintool/src/main.rs" "${GRT_SOURCE_DIR}/tools/bintool/src/error.rs"
+execute_process(COMMAND
+				"cargo" "install" "--path" "${GRT_SOURCE_DIR}/tools/bintool" "--root" "${TOOLS_DIR}"
 )
 
-add_custom_target(CompSHDR
-				  "cargo" "install" "--path" "${GRT_SOURCE_DIR}/tools/compshdr" "--root" "${TOOLS_DIR}"
-				  BYPRODUCTS "${COMPSHDR}"
-				  SOURCES "${GRT_SOURCE_DIR}/tools/compshdr/src/main.rs" "${GRT_SOURCE_DIR}/tools/compshdr/src/error.rs" "${GRT_SOURCE_DIR}/tools/compshdr/src/cli.rs"
+execute_process(COMMAND
+				"cargo" "install" "--path" "${GRT_SOURCE_DIR}/tools/compshdr" "--root" "${TOOLS_DIR}"
 )
 
-add_subdirectory(render)
+add_subdirectory(engine)
 add_subdirectory(runtime)
 
-add_custom_target(copy_compile_commands cp "${CMAKE_BINARY_DIR}/compile_commands.json" "${CMAKE_BINARY_DIR}/..")
+add_custom_target(copy_compile_commands "cp" "${CMAKE_BINARY_DIR}/compile_commands.json" "${CMAKE_BINARY_DIR}/..")
+execute_process(COMMAND "cp" "${CMAKE_BINARY_DIR}/compile_commands.json" "${CMAKE_BINARY_DIR}/..")
