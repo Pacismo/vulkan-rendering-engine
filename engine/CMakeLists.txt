@@ -1,4 +1,7 @@
-set(RENDER_SOURCES
+set(ENGINE_SOURCES
+    "shader.vert"
+    "shader.frag"
+
     "include/version.hpp"
     "include/object.hpp"
     "include/constants.hpp"
@@ -6,6 +9,9 @@ set(RENDER_SOURCES
     "include/vertex.hpp"
     "include/backend/vertex_description.hpp"
     "include/drawables/drawing_context.hpp"
+    "include/input/keyboard.hpp"
+    "include/input/mouse.hpp"
+    "include/input/controller.hpp"
     "src/backend/vma_impl.cpp"
 
     "src/backend/instance_manager.cpp"   "include/backend/instance_manager.hpp"
@@ -19,19 +25,17 @@ set(RENDER_SOURCES
     "src/backend/descriptor_pool.cpp"    "include/backend/descriptor_pool.hpp"
     "src/backend/allocator.cpp"          "include/backend/allocator.hpp")
 
-add_library(render ${RENDER_SOURCES})
-
-add_dependencies(render CompSHDR)
+add_library(engine ${ENGINE_SOURCES})
 
 execute_process(COMMAND "${COMPSHDR}" "${CMAKE_CURRENT_SOURCE_DIR}/shader.frag" "-m" "u32-list" "-k" "fragment" OUTPUT_VARIABLE FRAG_SHADER)
 execute_process(COMMAND "${COMPSHDR}" "${CMAKE_CURRENT_SOURCE_DIR}/shader.vert" "-m" "u32-list" "-k" "vertex" OUTPUT_VARIABLE VERT_SHADER)
 
 configure_file("cfg/shaders.hpp" "cfg/shaders.hpp")
 
-target_include_directories(render PUBLIC "include" PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/cfg")
-target_link_libraries(render PUBLIC Vulkan::Vulkan GPUOpen::VulkanMemoryAllocator glfw spdlog::spdlog fmt::fmt glm::glm)
+target_include_directories(engine PUBLIC "include" PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/cfg")
+target_link_libraries(engine PUBLIC Vulkan::Vulkan GPUOpen::VulkanMemoryAllocator glfw spdlog::spdlog fmt::fmt glm::glm)
 
-target_compile_definitions(render 
+target_compile_definitions(engine
 PRIVATE
     ENGINE_NAME="${GRT_ENGINE_NAME}"
     ENGINE_VERSION_MAJOR=${GRT_VERSION_MAJOR}
