@@ -4,23 +4,26 @@
 #include "backend/device_manager.hpp"
 #include "backend/instance_manager.hpp"
 #include "backend/vertex_description.hpp"
+#include "constants.hpp"
 #include "exceptions.hpp"
 #include "logger.hpp"
 #include "window.hpp"
 #include <algorithm>
 #include <array>
 #include <fmt/format.h>
+#include <glm/ext/matrix_clip_space.hpp>
 #include <limits>
 #include <optional>
 #include <span>
 #include <sstream>
+#include <vector>
 
 #include "drawables/GouraudMesh.hpp"
 
 #include "shaders.hpp"
 
-using std::move, std::swap, std::string_view, std::vector, std::shared_ptr, std::stringstream, std::span, std::tuple,
-    std::numeric_limits, std::clamp, std::min, std::array, std::optional, std::nullopt;
+using std::swap, std::string_view, std::vector, std::shared_ptr, std::stringstream, std::span, std::tuple,
+    std::numeric_limits, std::clamp, std::min, std::array, std::optional, std::nullopt, std::array;
 
 static vk::SurfaceKHR create_surface(vk::Instance instance, GLFWwindow *window)
 {
@@ -309,13 +312,12 @@ namespace engine
     {
         destroy_swapchain();
 
-        m_staging_buffer.deinit(m_device, m_command_pool, *m_allocator);
+        m_staging_buffer.deinit(m_device, m_command_pool.get_pool(), *m_allocator);
 
-        for (auto &pool : m_descriptor_pools)
-            pool.destroy();
+        m_descriptor_pool.destroy();
 
-        for (auto &sync : m_sync)
-            sync.destroy(m_device);
+        for (auto &frame_set : m_frame_sets)
+            frame_set.sync.destroy(m_device);
 
         if (m_gouraud_pipeline)
             m_device.destroyPipeline(m_gouraud_pipeline);
@@ -323,8 +325,7 @@ namespace engine
         if (m_textured_pipeline)
             m_device.destroyPipeline(m_textured_pipeline);
 
-        if (m_command_pool)
-            m_device.destroyCommandPool(m_command_pool);
+        m_command_pool.destroy();
 
         if (m_pipeline_layout)
             m_device.destroyPipelineLayout(m_pipeline_layout);
@@ -348,11 +349,8 @@ namespace engine
 
         m_logger->info("Destroyed render manager");
 
-        m_command_buffers.clear();
-        m_sync.clear();
-
+        m_frame_sets.clear();
         m_allocator         = nullptr;
-        m_command_pool      = nullptr;
         m_gouraud_pipeline  = nullptr;
         m_textured_pipeline = nullptr;
         m_pipeline_layout   = nullptr;
@@ -384,27 +382,27 @@ namespace engine
     }
 
     VulkanBackend::VulkanBackend(VulkanBackend &&other) noexcept
-        : m_logger(move(other.m_logger))
-        , m_instance_manager(move(other.m_instance_manager))
-        , m_device_manager(move(other.m_device_manager))
-        , m_window(move(other.m_window))
-        , m_device(move(other.m_device))
-        , m_graphics_queue(move(other.m_graphics_queue))
-        , m_present_queue(move(other.m_present_queue))
-        , m_surface(move(other.m_surface))
-        , m_images(move(other.m_images))
-        , m_image_views(move(other.m_image_views))
-        , m_render_pass(move(other.m_render_pass))
-        , m_pipeline_layout(move(other.m_pipeline_layout))
-        , m_gouraud_pipeline(move(other.m_gouraud_pipeline))
-        , m_command_pool(move(other.m_command_pool))
-        , m_command_buffers(move(other.m_command_buffers))
-        , m_sync(move(other.m_sync))
-        , m_swapchain_config(move(other.m_swapchain_config))
-        , m_vertex_shader(move(other.m_vertex_shader))
-        , m_fragment_shader(move(other.m_fragment_shader))
-        , m_allocator(move(other.m_allocator))
-        , m_staging_buffer(move(other.m_staging_buffer))
+        : m_logger(std::move(other.m_logger))
+        , m_instance_manager(std::move(other.m_instance_manager))
+        , m_device_manager(std::move(other.m_device_manager))
+        , m_window(std::move(other.m_window))
+        , m_device(std::move(other.m_device))
+        , m_graphics_queue(std::move(other.m_graphics_queue))
+        , m_present_queue(std::move(other.m_present_queue))
+        , m_surface(std::move(other.m_surface))
+        , m_images(std::move(other.m_images))
+        , m_image_views(std::move(other.m_image_views))
+        , m_render_pass(std::move(other.m_render_pass))
+        , m_pipeline_layout(std::move(other.m_pipeline_layout))
+        , m_gouraud_pipeline(std::move(other.m_gouraud_pipeline))
+        , m_command_pool(std::move(other.m_command_pool))
+        , m_frame_sets(std::move(other.m_frame_sets))
+        , m_descriptor_pool(std::move(other.m_descriptor_pool))
+        , m_swapchain_config(std::move(other.m_swapchain_config))
+        , m_vertex_shader(std::move(other.m_vertex_shader))
+        , m_fragment_shader(std::move(other.m_fragment_shader))
+        , m_allocator(std::move(other.m_allocator))
+        , m_staging_buffer(std::move(other.m_staging_buffer))
     { }
 
     VulkanBackend &VulkanBackend::operator=(VulkanBackend &&other) noexcept
@@ -425,8 +423,8 @@ namespace engine
         swap(m_pipeline_layout, other.m_pipeline_layout);
         swap(m_gouraud_pipeline, other.m_gouraud_pipeline);
         swap(m_command_pool, other.m_command_pool);
-        swap(m_command_buffers, other.m_command_buffers);
-        swap(m_sync, other.m_sync);
+        swap(m_frame_sets, other.m_frame_sets);
+        swap(m_descriptor_pool, other.m_descriptor_pool);
 
         swap(m_allocator, other.m_allocator);
         swap(m_staging_buffer, other.m_staging_buffer);
@@ -502,8 +500,7 @@ namespace engine
         create_framebuffers();
         create_command_pool();
         create_descriptor_pools();
-        allocate_command_buffers();
-        create_sync_primitives();
+        initialize_frame_sets();
         initialize_device_memory_allocator();
 
         finalize_init();
@@ -626,8 +623,7 @@ namespace engine
 
     void VulkanBackend::create_descriptor_pools()
     {
-        for (auto &descriptor_pool : m_descriptor_pools)
-            descriptor_pool.init(m_device_manager);
+        m_descriptor_pool.init(m_device_manager, MAX_IN_FLIGHT * MAX_DESCRIPTORS);
     }
 
     static vector<vk::ImageView> create_image_views(vk::Device device, span<vk::Image> images, vk::Format format,
@@ -828,53 +824,34 @@ namespace engine
 
     void VulkanBackend::create_command_pool()
     {
-        vk::CommandPoolCreateInfo create_info = {
-            .flags            = vk::CommandPoolCreateFlagBits::eResetCommandBuffer,
-            .queueFamilyIndex = m_device_manager->graphics_queue.index,
-        };
-
-        m_command_pool = m_device.createCommandPool(create_info);
+        m_command_pool.init(m_device_manager, m_device_manager->graphics_queue.index);
     }
 
-    void VulkanBackend::allocate_command_buffers()
+    void VulkanBackend::initialize_frame_sets()
     {
-        vk::CommandBufferAllocateInfo allocate_info = {
-            .commandPool        = m_command_pool,
-            .level              = vk::CommandBufferLevel::ePrimary,
-            .commandBufferCount = IN_FLIGHT,
-        };
+        auto cmd_buffers     = m_command_pool.get(MAX_IN_FLIGHT);
+        auto descriptor_sets = m_descriptor_pool.get(m_uniform_descriptor_layout, MAX_IN_FLIGHT * MAX_DESCRIPTORS);
 
-        m_command_buffers = m_device.allocateCommandBuffers(allocate_info);
-        m_logger->info("Allocated {} command buffers", m_command_buffers.size());
-    }
-
-    void VulkanBackend::create_sync_primitives()
-    {
-        m_sync.resize(IN_FLIGHT);
-        for (auto &sync : m_sync)
-            sync.init(m_device);
+        m_frame_sets.resize(MAX_IN_FLIGHT);
+        for (size_t i = 0; i < MAX_IN_FLIGHT; ++i) {
+            m_frame_sets[i].command_buffer = cmd_buffers[i];
+            m_frame_sets[i].sync.init(m_device);
+            memcpy(m_frame_sets[i].descriptors.data(), descriptor_sets.data() + i * MAX_DESCRIPTORS, MAX_DESCRIPTORS);
+        }
     }
 
     void VulkanBackend::initialize_device_memory_allocator()
     {
-        m_allocator = shared_ptr<VulkanAllocator>(new VulkanAllocator(m_device_manager));
-
-        vk::CommandBufferAllocateInfo cba_info {
-            .commandPool        = m_command_pool,
-            .level              = vk::CommandBufferLevel::ePrimary,
-            .commandBufferCount = 1,
-        };
-
-        vk::CommandBuffer cmd = m_device.allocateCommandBuffers(cba_info)[0];
-
-        vk::Fence fence = m_device.createFence(vk::FenceCreateInfo {.flags = vk::FenceCreateFlagBits::eSignaled});
+        m_allocator           = shared_ptr<VulkanAllocator>(new VulkanAllocator(m_device_manager));
+        vk::CommandBuffer cmd = m_command_pool.get();
+        vk::Fence fence       = m_device.createFence(vk::FenceCreateInfo {.flags = vk::FenceCreateFlagBits::eSignaled});
 
         m_staging_buffer.init(*m_allocator, cmd, fence);
     }
 
     void VulkanBackend::finalize_init()
     {
-        m_vp_uniform = TypedHostVisibleAllocation<ViewProjectionUniform[IN_FLIGHT]>(
+        m_vp_uniform = TypedHostVisibleAllocation<ViewProjectionUniform[MAX_IN_FLIGHT]>(
             m_allocator, vk::BufferUsageFlagBits::eUniformBuffer);
     }
 
@@ -887,35 +864,32 @@ namespace engine
             return nullopt;
         }
 
-        uint32_t          frame      = m_frame_index;
-        GpuSync          &sync       = m_sync[frame];
-        vk::CommandBuffer cmd_buffer = m_command_buffers[frame];
+        uint32_t  frame = m_frame_index;
+        FrameSet &set   = m_frame_sets[frame];
 
-        auto wait_result = m_device.waitForFences(sync.in_flight, true, TIMEOUT);
+        auto wait_result = m_device.waitForFences(set.sync.in_flight, true, TIMEOUT);
         if (wait_result != vk::Result::eSuccess)
             throw VulkanException((uint32_t)wait_result, "Failed to wait on fence");
 
-        auto [ia_result, image_index] = m_device.acquireNextImageKHR(m_swapchain, TIMEOUT, sync.image_available);
+        auto [ia_result, image_index] = m_device.acquireNextImageKHR(m_swapchain, TIMEOUT, set.sync.image_available);
         if (ia_result == vk::Result::eErrorOutOfDateKHR) {
             m_valid_framebuffer = recreate_swapchain();
             return nullopt;
         } else if (ia_result != vk::Result::eSuccess)
             throw VulkanException((uint32_t)ia_result, "Failed to acquire image");
 
-        m_device.resetFences(sync.in_flight);
+        m_device.resetFences(set.sync.in_flight);
 
-        cmd_buffer.reset();
-        initialize_command_buffer(cmd_buffer, image_index);
+        set.command_buffer.reset();
+        initialize_command_buffer(set.command_buffer, image_index);
 
         m_vp_uniform[frame] = {
             .view       = m_camera,
             .projection = glm::perspectiveFovZO<float>(glm::radians(m_fov), m_swapchain_config.extent.width,
-                                                     m_swapchain_config.extent.height, 0.1, 10.0),
+                                                       m_swapchain_config.extent.height, 0.1, 10.0),
         };
         m_vp_uniform[frame].projection[1][1] *= -1.0f;
         m_vp_uniform.flush();
-
-        m_descriptor_pools[frame].reset();
 
         vk::DescriptorBufferInfo dbi = {
             .buffer = m_vp_uniform.buffer,
@@ -925,41 +899,41 @@ namespace engine
 
         return DrawingContext {
             .backend               = this,
-            .descriptor_pool       = &m_descriptor_pools[frame],
+            .descriptors           = set.descriptors,
+            .used_descriptors      = 0,
             .frame_index           = frame,
             .swapchain_image_index = image_index,
             .vp_buffer_info        = dbi,
-            .cmd                   = cmd_buffer,
+            .cmd                   = set.command_buffer,
         };
     }
 
     void VulkanBackend::end_draw(DrawingContext &context)
     {
-        auto  cmd_buffer  = context.cmd;
-        auto  frame_index = context.frame_index;
-        auto  image_index = context.swapchain_image_index;
-        auto &sync        = m_sync[frame_index];
+        size_t    frame_index = context.frame_index;
+        uint32_t  image_index = context.swapchain_image_index;
+        FrameSet &set         = m_frame_sets[frame_index];
 
-        cmd_buffer.endRenderPass();
-        cmd_buffer.end();
+        set.command_buffer.endRenderPass();
+        set.command_buffer.end();
 
         vk::PipelineStageFlags wait_stages = vk::PipelineStageFlagBits::eColorAttachmentOutput;
 
         vk::SubmitInfo submit = {
             .waitSemaphoreCount   = 1,
-            .pWaitSemaphores      = &sync.image_available,
+            .pWaitSemaphores      = &set.sync.image_available,
             .pWaitDstStageMask    = &wait_stages,
             .commandBufferCount   = 1,
-            .pCommandBuffers      = &cmd_buffer,
+            .pCommandBuffers      = &set.command_buffer,
             .signalSemaphoreCount = 1,
-            .pSignalSemaphores    = &sync.render_finished,
+            .pSignalSemaphores    = &set.sync.render_finished,
         };
 
-        m_graphics_queue.submit(submit, sync.in_flight);
+        m_graphics_queue.submit(submit, set.sync.in_flight);
 
         vk::PresentInfoKHR present = {
             .waitSemaphoreCount = 1,
-            .pWaitSemaphores    = &sync.render_finished,
+            .pWaitSemaphores    = &set.sync.render_finished,
             .swapchainCount     = 1,
             .pSwapchains        = &m_swapchain,
             .pImageIndices      = &image_index,
@@ -978,7 +952,7 @@ namespace engine
             m_valid_framebuffer   = recreate_swapchain();
         }
 
-        m_frame_index = ++m_frame_index % IN_FLIGHT;
+        m_frame_index = ++m_frame_index % MAX_IN_FLIGHT;
     }
 
     void VulkanBackend::initialize_command_buffer(vk::CommandBuffer buffer, uint32_t image_index)
@@ -1109,7 +1083,7 @@ namespace engine
 
         m_staging_buffer.wait(m_device); // Wait for final transfer
 
-        return shared_ptr<GouraudMesh>(new GouraudMesh(move(allocation), 0, vbuf_bytes, indices.size()));
+        return shared_ptr<GouraudMesh>(new GouraudMesh(std::move(allocation), 0, vbuf_bytes, indices.size()));
     }
 
     VulkanBackend::StagingBuffer::operator uint8_t *()
