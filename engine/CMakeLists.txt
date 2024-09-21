@@ -14,16 +14,22 @@ set(ENGINE_SOURCES
     "include/input/controller.hpp"
     "src/backend/vma_impl.cpp"
 
-    "src/backend/instance_manager.cpp"   "include/backend/instance_manager.hpp"
+    "src/logger.cpp"                     "include/logger.hpp"
+    "src/window.cpp"                     "include/window.hpp"
     "src/exceptions.cpp"                 "include/exceptions.hpp"
+
+    "src/backend/instance_manager.cpp"   "include/backend/instance_manager.hpp"
     "src/backend/vk_result.cpp"          "include/backend/vk_result.hpp"
     "src/backend/device_manager.cpp"     "include/backend/device_manager.hpp"
-    "src/window.cpp"                     "include/window.hpp"
-    "src/logger.cpp"                     "include/logger.hpp"
     "src/backend/vulkan_backend.cpp"     "include/backend/vulkan_backend.hpp"
-    "src/drawables/GouraudMesh.cpp"      "include/drawables/GouraudMesh.hpp"
     "src/backend/descriptor_pool.cpp"    "include/backend/descriptor_pool.hpp"
-    "src/backend/allocator.cpp"          "include/backend/allocator.hpp")
+    "src/backend/command_pool.cpp"       "include/backend/command_pool.hpp"
+    "src/backend/allocator.cpp"          "include/backend/allocator.hpp"
+
+    "src/gui/imgui_manager.cpp"          "include/gui/imgui_manager.hpp"
+
+    "src/drawables/GouraudMesh.cpp"      "include/drawables/GouraudMesh.hpp"
+)
 
 add_library(engine ${ENGINE_SOURCES})
 
@@ -33,7 +39,7 @@ execute_process(COMMAND "${COMPSHDR}" "${CMAKE_CURRENT_SOURCE_DIR}/shader.vert" 
 configure_file("cfg/shaders.hpp" "cfg/shaders.hpp")
 
 target_include_directories(engine PUBLIC "include" PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/cfg")
-target_link_libraries(engine PUBLIC Vulkan::Vulkan GPUOpen::VulkanMemoryAllocator glfw spdlog::spdlog fmt::fmt glm::glm)
+target_link_libraries(engine PUBLIC Vulkan::Vulkan GPUOpen::VulkanMemoryAllocator glfw spdlog::spdlog fmt::fmt glm::glm imgui::imgui)
 
 target_compile_definitions(engine
 PRIVATE
