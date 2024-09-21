@@ -1,8 +1,8 @@
-#include <algorithm>
 #include <backend/vulkan_backend.hpp>
-#include <chrono>
 #include <exceptions.hpp>
 #include <fmt/format.h>
+#include <glfw/glfw3.h>
+#include <imgui.h>
 #include <memory>
 #include <object.hpp>
 #include <span>
@@ -18,10 +18,9 @@
 #endif
 
 using namespace std::chrono_literals;
-using engine::primitives::GouraudVertex, engine::Object, engine::Transform, engine::CameraTransform,
-    engine::KeyboardKey, engine::KeyAction, engine::ModifierKey, engine::contains;
-using std::shared_ptr, std::initializer_list, engine::Window, std::string_view, std::array, std::chrono::time_point,
-    std::chrono::system_clock, std::list, std::shared_ptr;
+using engine::primitives::GouraudVertex, engine::Object, engine::CameraTransform, engine::KeyboardKey,
+    engine::KeyAction, engine::ModifierKey, engine::contains;
+using std::shared_ptr, std::initializer_list, engine::Window, std::string_view, std::array, std::list, std::shared_ptr;
 
 const array<GouraudVertex, 8> VERTICES = {
     GouraudVertex {.position = {-0.5, -0.5, 0.0}, .color = {1.0, 0.0, 0.0}},
@@ -68,6 +67,15 @@ class Cube : public Object
 class ExampleWindow : public Window
 {
   public:
+    void capture_mouse(bool capture)
+    {
+        if (capture && glfwRawMouseMotionSupported()) {
+            glfwSetInputMode(m_window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+            glfwSetInputMode(m_window, GLFW_RAW_MOUSE_MOTION, GLFW_TRUE);
+        } else {
+            glfwSetInputMode(m_window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
+        }
+    }
     ExampleWindow(string_view title, int width, int height)
         : Window(title, width, height, "Runtime", {0, 1, 0})
     {
@@ -79,18 +87,14 @@ class ExampleWindow : public Window
         camera.location = {2.0, 2.0, 2.0};
         camera.rotation = {glm::radians(135.0), glm::radians(-35.0)};
 
-        if (glfwRawMouseMotionSupported()) {
-            glfwSetInputMode(m_window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
-            glfwSetInputMode(m_window, GLFW_RAW_MOUSE_MOTION, GLFW_TRUE);
-        }
+        capture_mouse(camera_mouse);
 
         rb->set_view(camera);
     }
 
     void on_key_action(KeyboardKey key, ModifierKey mods, KeyAction action, int scancode) override
     {
-        using KeyboardKey::W, KeyboardKey::A, KeyboardKey::S, KeyboardKey::D, KeyboardKey::LeftShift,
-            KeyboardKey::Escape;
+        using KeyboardKey::Tab, KeyboardKey::Escape;
 
         switch (key) {
         case Escape:
@@ -105,6 +109,9 @@ class ExampleWindow : public Window
     {
         constexpr glm::vec2 COEFFICIENT = {-0.01, -0.01};
 
+        if (!camera_mouse)
+            return;
+
         camera.rotation.x = glm::mod(camera.rotation.x + dx * COEFFICIENT.x, glm::radians(360.0));
         camera.rotation.y = glm::clamp(camera.rotation.y + dy * COEFFICIENT.y, glm::radians(-89.9), glm::radians(89.9));
     }
@@ -113,6 +120,11 @@ class ExampleWindow : public Window
 
     void process(double delta) override
     {
+        ImGui::ShowDemoWindow();
+
+        if (glfwGetKey(m_window, GLFW_KEY_TAB))
+            capture_mouse(camera_mouse = !camera_mouse);
+
         glm::vec3 transform = {get_axis(KeyboardKey::D, KeyboardKey::A, KeyboardKey::W, KeyboardKey::S),
                                get_magnitude(KeyboardKey::Q, KeyboardKey::E)};
 
@@ -144,6 +156,8 @@ class ExampleWindow : public Window
     CameraTransform          camera;
     shared_ptr<Cube>         cube    = nullptr;
     list<shared_ptr<Object>> objects = {};
+
+    bool camera_mouse = true;
 };
 
 static void set_spdlog_global_settings()
