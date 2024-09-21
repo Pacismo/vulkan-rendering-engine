@@ -191,8 +191,33 @@ namespace engine
     {
         return l = l & r;
     }
+        
+    inline constexpr KeyAction operator|(KeyAction l, KeyAction r)
+    {
+        return KeyAction(uint32_t(l) | uint32_t(r));
+    }
+
+    inline constexpr KeyAction &operator|=(KeyAction &l, KeyAction r)
+    {
+        return l = l | r;
+    }
+
+    inline constexpr KeyAction operator&(KeyAction l, KeyAction r)
+    {
+        return KeyAction(uint32_t(l) & uint32_t(r));
+    }
+
+    inline constexpr KeyAction &operator&=(KeyAction &l, KeyAction r)
+    {
+        return l = l & r;
+    }
 
     inline constexpr bool contains(ModifierKey flags, ModifierKey key)
+    {
+        return (int32_t(flags) & int32_t(key)) != 0;
+    }
+    
+    inline constexpr bool contains(KeyAction flags, KeyAction key)
     {
         return (int32_t(flags) & int32_t(key)) != 0;
     }
