@@ -1,4 +1,6 @@
 #include "drawables/GouraudMesh.hpp"
+#include "backend/vulkan_backend.hpp"
+#include "drawables/drawing_context.hpp"
 #include <array>
 
 using std::array;
@@ -18,7 +20,7 @@ namespace engine
         model_matrix[context.frame_index] = parent_transform * transform.get_transform_matrix();
         model_matrix.flush();
 
-        vk::DescriptorSet descriptor = context.descriptor_pool->get(context.backend->m_uniform_descriptor_layout);
+        vk::DescriptorSet descriptor = context.descriptors[context.used_descriptors++];
 
         array<vk::DescriptorBufferInfo, 2> dbi = {
             context.vp_buffer_info,
