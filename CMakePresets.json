@@ -1,118 +1,205 @@
 {
-  "$schema": "https://cmake.org/cmake/help/latest/_downloads/3e2d73bff478d88a7de0de736ba5e361/schema.json",
-  "version": 8,
-  "cmakeMinimumRequired": {
-    "major": 3,
-    "minor": 30,
-    "patch": 0
-  },
-  "configurePresets": [
-    {
-      "name": "base",
-      "hidden": true,
-      "generator": "Ninja",
-      "binaryDir": "${sourceDir}/build/${presetName}",
-      "cacheVariables": {
-        "CMAKE_EXPORT_COMPILE_COMMANDS": true,
-        "CMAKE_TOOLCHAIN_FILE": "vcpkg/scripts/buildsystems/vcpkg.cmake",
-        "CMAKE_INSTALL_PREFIX": "${sourceDir}/install/${presetName}"
-      }
+    "$schema": "https://cmake.org/cmake/help/latest/_downloads/3e2d73bff478d88a7de0de736ba5e361/schema.json",
+    "version": 8,
+    "cmakeMinimumRequired": {
+        "major": 3,
+        "minor": 30,
+        "patch": 0
     },
-    {
-      "name": "x86-windows",
-      "inherits": "base",
-      "hidden": true,
-      "cacheVariables": {
-        "VCPKG_TARGET_TRIPLET": "x86-windows"
-      }
-    },
-    {
-      "name": "x64-windows",
-      "inherits": "base",
-      "hidden": true,
-      "cacheVariables": {
-        "VCPKG_TARGET_TRIPLET": "x64-windows"
-      }
-    },
-    {
-      "name": "x86-static-windows",
-      "inherits": "base",
-      "hidden": true,
-      "cacheVariables": {
-        "VCPKG_TARGET_TRIPLET": "x86-windows-static-md"
-      }
-    },
-    {
-      "name": "x64-static-windows",
-      "inherits": "base",
-      "hidden": true,
-      "cacheVariables": {
-        "VCPKG_TARGET_TRIPLET": "x64-windows-static-md"
-      }
-    },
-    {
-      "name": "x86-linux",
-      "inherits": "base",
-      "hidden": true,
-      "cacheVariables": {
-        "VCPKG_TARGET_TRIPLET": "x86-linux"
-      }
-    },
-    {
-      "name": "x64-linux",
-      "inherits": "base",
-      "hidden": true,
-      "cacheVariables": {
-        "VCPKG_TARGET_TRIPLET": "x64-linux"
-      }
-    },
-    {
-      "name": "debug-x64ws",
-      "inherits": "x64-static-windows",
-      "displayName": "Debug (x64-Static)",
-      "description": "Sets Ninja generator, build and install directory",
-      "cacheVariables": {
-        "CMAKE_BUILD_TYPE": "Debug",
-        "DEBUG": "1",
-        "TERMINAL": "1"
-      }
-    },
-    {
-      "name": "release-x64ws",
-      "inherits": "x64-static-windows",
-      "displayName": "Release (x64-Static)",
-      "description": "Sets Ninja generator, build and install directory",
-      "cacheVariables": {
-        "CMAKE_BUILD_TYPE": "Release",
-        "DEBUG": "0",
-        "TERMINAL": "1"
-      }
-    },
-    {
-      "name": "release-x64ws-noterm",
-      "inherits": "release-x64ws",
-      "displayName": "Release (x64-Static, No Terminal)",
-      "description": "Release build without a terminal",
-      "cacheVariables": {
-        "TERMINAL": "0"
-      }
-    }
-  ],
-  "buildPresets": [
-    {
-      "name": "debug-x64-static",
-      "configurePreset": "debug-x64ws",
-      "displayName": "Debug (x64-Static)"
-    },
-    {
-      "name": "release-x64-static",
-      "configurePreset": "release-x64ws",
-      "displayName": "Release (x64-Static)"
-    },
-    {
-      "name": "release-x64-static-noterm",
-      "configurePreset": "release-x64ws-noterm",
-      "displayName": "Release (x64-Static, No Terminal)"
-    }
-  ]
+    "configurePresets": [
+        {
+            "name": "base",
+            "hidden": true,
+            "generator": "Ninja",
+            "binaryDir": "${sourceDir}/build/${presetName}",
+            "cacheVariables": {
+                "CMAKE_EXPORT_COMPILE_COMMANDS": true,
+                "CMAKE_TOOLCHAIN_FILE": "vcpkg/scripts/buildsystems/vcpkg.cmake",
+                "CMAKE_INSTALL_PREFIX": "${sourceDir}/install/${presetName}"
+            }
+        },
+        {
+            "name": "x86-windows",
+            "inherits": "base",
+            "hidden": true,
+            "cacheVariables": {
+                "VCPKG_TARGET_TRIPLET": "x86-windows",
+                "CMAKE_C_COMPILER": "cl.exe",
+                "CMAKE_CXX_COMPILER": "cl.exe"
+            },
+            "condition": {
+                "type": "equals",
+                "lhs": "${hostSystemName}",
+                "rhs": "Windows"
+            }
+        },
+        {
+            "name": "x64-windows",
+            "inherits": "base",
+            "hidden": true,
+            "cacheVariables": {
+                "VCPKG_TARGET_TRIPLET": "x64-windows",
+                "CMAKE_C_COMPILER": "cl.exe",
+                "CMAKE_CXX_COMPILER": "cl.exe"
+            },
+            "condition": {
+                "type": "equals",
+                "lhs": "${hostSystemName}",
+                "rhs": "Windows"
+            }
+        },
+        {
+            "name": "x86-static-windows",
+            "inherits": "base",
+            "hidden": true,
+            "cacheVariables": {
+                "VCPKG_TARGET_TRIPLET": "x86-windows-static-md",
+                "CMAKE_C_COMPILER": "cl.exe",
+                "CMAKE_CXX_COMPILER": "cl.exe"
+            },
+            "condition": {
+                "type": "equals",
+                "lhs": "${hostSystemName}",
+                "rhs": "Windows"
+            }
+        },
+        {
+            "name": "x64-static-windows",
+            "inherits": "base",
+            "hidden": true,
+            "cacheVariables": {
+                "VCPKG_TARGET_TRIPLET": "x64-windows-static-md",
+                "CMAKE_C_COMPILER": "cl.exe",
+                "CMAKE_CXX_COMPILER": "cl.exe"
+            },
+            "condition": {
+                "type": "equals",
+                "lhs": "${hostSystemName}",
+                "rhs": "Windows"
+            }
+        },
+        {
+            "name": "x86-linux",
+            "inherits": "base",
+            "hidden": true,
+            "cacheVariables": {
+                "VCPKG_TARGET_TRIPLET": "x86-linux"
+            },
+            "condition": {
+                "type": "equals",
+                "lhs": "${hostSystemName}",
+                "rhs": "Linux"
+            }
+        },
+        {
+            "name": "x64-linux",
+            "inherits": "base",
+            "hidden": true,
+            "cacheVariables": {
+                "VCPKG_TARGET_TRIPLET": "x64-linux"
+            },
+            "condition": {
+                "type": "equals",
+                "lhs": "${hostSystemName}",
+                "rhs": "Linux"
+            }
+        },
+        {
+            "name": "debug-x64ws",
+            "inherits": "x64-static-windows",
+            "displayName": "Windows - Debug (x64-Static)",
+            "description": "Windows debug configuration (Visual Studio, static linkage)",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Debug",
+                "DEBUG": "1",
+                "TERMINAL": "1"
+            }
+        },
+        {
+            "name": "release-x64ws",
+            "inherits": "x64-static-windows",
+            "displayName": "Windows - Release (x64-Static)",
+            "description": "Windows release configuration (Visual Studio, static linkage)",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Release",
+                "DEBUG": "0",
+                "TERMINAL": "1"
+            }
+        },
+        {
+            "name": "release-x64ws-noterm",
+            "inherits": "release-x64ws",
+            "displayName": "Windows - Release (x64-Static, No Terminal)",
+            "description": "Windows release configuration (Visual Studio, static linkage, WinMain)",
+            "cacheVariables": {
+                "TERMINAL": "0"
+            }
+        },
+        {
+            "name": "debug-x64linux",
+            "inherits": "x64-linux",
+            "displayName": "Linux - Debug (x64)",
+            "description": "Linux debug configuration (Ninja/GCC, static linkage)",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Debug",
+                "DEBUG": "1",
+                "TERMINAL": "1"
+            }
+        },
+        {
+            "name": "release-x64linux",
+            "inherits": "x64-linux",
+            "displayName": "Linux - Release (x64)",
+            "description": "Linux release configuration (Ninja/GCC, static linkage)",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Release",
+                "DEBUG": "0",
+                "TERMINAL": "1"
+            }
+        },
+        {
+            "name": "release-x64linux-noterm",
+            "inherits": "release-x64linux",
+            "displayName": "Linux - Release (x64, No Terminal)",
+            "description": "Linux release configuration (Ninja/GCC, static linkage, no terminal)",
+            "cacheVariables": {
+                "TERMINAL": "0"
+            }
+        }
+    ],
+    "buildPresets": [
+        {
+            "name": "debug-x64-windows-static",
+            "configurePreset": "debug-x64ws",
+            "displayName": "Windows - Debug (x64-Static)",
+            "configuration": "Debug"
+        },
+        {
+            "name": "release-x64-windows-static",
+            "configurePreset": "release-x64ws",
+            "displayName": "Windows - Release (x64-Static)",
+            "configuration": "Release"
+        },
+        {
+            "name": "release-x64-windows-static-noterm",
+            "configurePreset": "release-x64ws-noterm",
+            "displayName": "Windows - Release (x64-Static, No Terminal)",
+            "configuration": "Release"
+        },
+        {
+            "name": "debug-x64-linux",
+            "configurePreset": "debug-x64linux",
+            "displayName": "Linux - Debug (x64)"
+        },
+        {
+            "name": "release-x64-linux",
+            "configurePreset": "release-x64linux",
+            "displayName": "Linux - Release (x64)"
+        },
+        {
+            "name": "release-x64-linux-noterm",
+            "configurePreset": "release-x64linux-noterm",
+            "displayName": "Linux - Release (x64, No Terminal)"
+        }
+    ]
 }

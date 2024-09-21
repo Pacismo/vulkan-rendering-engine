@@ -43,4 +43,3 @@ add_subdirectory(engine)
 add_subdirectory(runtime)
 
 add_custom_target(copy_compile_commands "cp" "${CMAKE_BINARY_DIR}/compile_commands.json" "${CMAKE_BINARY_DIR}/..")
-execute_process(COMMAND "cp" "${CMAKE_BINARY_DIR}/compile_commands.json" "${CMAKE_BINARY_DIR}/..")
