@@ -11,6 +11,8 @@
 #include "input/keyboard.hpp"
 #include "input/mouse.hpp"
 
+#include "gui/imgui_manager.hpp"
+
 #ifdef VULKAN_HPP
 #    include "backend/vulkan_backend.hpp"
 #endif
@@ -19,7 +21,7 @@ namespace engine
 {
     /**
      * @brief Base class for all windows.
-     * 
+     *
      * Fully constructs the necessary components to render objects to the screen.
      */
     class Window
@@ -63,11 +65,12 @@ namespace engine
         Window(const Window &)            = delete;
         Window &operator=(const Window &) = delete;
 
-        Window(Window &&) noexcept;
-        Window &operator=(Window &&) noexcept;
+        Window(Window &&) noexcept            = delete;
+        Window &operator=(Window &&) noexcept = delete;
 
       protected:
-        GLFWwindow *m_window = {};
+        GLFWwindow  *m_window        = {};
+        ImGuiManager m_imgui_manager = {};
 
         double last_mouse_x = 0.0;
         double last_mouse_y = 0.0;
@@ -81,5 +84,6 @@ namespace engine
         static void key_callback(GLFWwindow *, int key, int scancode, int action, int mods);
         static void mouse_button_callback(GLFWwindow *, int button, int action, int mods);
         static void cursor_pos_callback(GLFWwindow *, double xpos, double ypos);
+        static void handle_resize(GLFWwindow *, int width, int height);
     };
 } // namespace engine

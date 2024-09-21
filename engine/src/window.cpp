@@ -1,25 +1,20 @@
+#include <GLFW/glfw3.h>
 #include <vulkan/vulkan.hpp>
 
 #include "backend/device_manager.hpp"
-#include "backend/instance_manager.hpp"
 #include "backend/vulkan_backend.hpp"
 #include "drawables/drawing_context.hpp"
 #include "exceptions.hpp"
 #include "logger.hpp"
 #include "window.hpp"
-#include <algorithm>
 #include <chrono>
 #include <fmt/format.h>
-#include <span>
 #include <spdlog/spdlog.h>
 #include <sstream>
-#include <tuple>
-#include <vector>
 
-using std::string_view, std::span, std::vector, std::tuple, std::get, std::shared_ptr, std::stringstream, std::sort,
-    std::move, std::swap, std::optional;
+using std::string_view, std::stringstream, std::optional;
 using std::chrono::system_clock, std::chrono::time_point, std::chrono::duration, std::chrono::duration_cast,
-    std::chrono::time_point_cast, std::chrono::nanoseconds, std::chrono::seconds;
+    std::chrono::nanoseconds, std::chrono::seconds;
 using namespace std::chrono_literals;
 
 namespace engine
@@ -40,6 +35,7 @@ namespace engine
         set_glfw_callbacks();
 
         m_render_manager = VulkanBackend::new_shared(application_name, application_version, m_window);
+        m_imgui_manager.init(m_render_manager, m_window);
     }
 
     Window::Window(string_view title, int32_t width, int32_t height, const Window &other)
@@ -54,6 +50,7 @@ namespace engine
         set_glfw_callbacks();
 
         m_render_manager = VulkanBackend::new_shared(other.m_render_manager, m_window);
+        m_imgui_manager.init(m_render_manager, m_window);
     }
 
     void Window::show()
@@ -123,6 +120,7 @@ namespace engine
                 duration   render_delta = duration_cast<duration<double>>(now - last_draw);
 
                 glfwPollEvents();
+                m_imgui_manager.new_frame();
                 process(render_delta.count());
 
                 if (now >= next_physics) {
@@ -134,15 +132,16 @@ namespace engine
 
                 if (optional<DrawingContext> ctx = m_render_manager->begin_draw()) {
                     handle_draw(ctx.value());
+                    m_imgui_manager.render(ctx.value());
                     m_render_manager->end_draw(ctx.value());
                 }
 
                 duration dur = system_clock::now() - start;
-                last_draw    = now;
 
+                last_draw = now;
                 if (count < max)
                     count += 1;
-                avg = (avg * (count - 1) + render_delta.count()) / count;
+                avg = (avg * (count - 1) + dur.count()) / count;
                 if (now >= next_print) {
                     spdlog::info("Average FPS: {:.2F}", 1.0 / avg);
                     next_print += print_period;
@@ -165,20 +164,6 @@ namespace engine
         if (m_window)
             glfwDestroyWindow(m_window);
         m_window = nullptr;
-    }
-
-    Window::Window(Window &&other) noexcept
-        : m_logger(move(m_logger))
-        , m_render_manager(move(m_render_manager))
-
-    { }
-
-    Window &Window::operator=(Window &&other) noexcept
-    {
-        swap(m_logger, other.m_logger);
-        swap(m_render_manager, other.m_render_manager);
-
-        return *this;
     }
 
     void Window::set_glfw_callbacks()
@@ -214,5 +199,12 @@ namespace engine
         window->last_mouse_x = xpos;
         window->last_mouse_y = ypos;
         window->on_cursor_motion(xpos, ypos, dx, dy);
+    }
+
+    void Window::handle_resize(GLFWwindow *p_wnd, int width, int height)
+    {
+        Window *window = (Window *)glfwGetWindowUserPointer(p_wnd);
+
+        window->m_render_manager->m_framebuffer_resized = true;
     }
 } // namespace engine
