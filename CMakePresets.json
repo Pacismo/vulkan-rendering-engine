@@ -12,11 +12,11 @@
             "hidden": true,
             "generator": "Ninja",
             "binaryDir": "${sourceDir}/build/${presetName}",
-            "cacheVariables": {
-                "CMAKE_EXPORT_COMPILE_COMMANDS": true,
-                "CMAKE_TOOLCHAIN_FILE": "vcpkg/scripts/buildsystems/vcpkg.cmake",
-                "CMAKE_INSTALL_PREFIX": "${sourceDir}/install/${presetName}"
-            }
+          "cacheVariables": {
+            "CMAKE_EXPORT_COMPILE_COMMANDS": true,
+            "CMAKE_TOOLCHAIN_FILE": "vcpkg/scripts/buildsystems/vcpkg.cmake",
+            "CMAKE_INSTALL_PREFIX": "${sourceDir}/install/${presetName}"
+          }
         },
         {
             "name": "x86-windows",
@@ -105,6 +105,37 @@
             }
         },
         {
+            "name": "debug-x64w",
+            "inherits": "x64-windows",
+            "displayName": "Windows - Debug (x64)",
+            "description": "Windows debug configuration (Visual Studio)",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Debug",
+                "DEBUG": "1",
+                "TERMINAL": "1"
+            }
+        },
+        {
+            "name": "release-x64w",
+            "inherits": "x64-windows",
+            "displayName": "Windows - Release (x64)",
+            "description": "Windows release configuration (Visual Studio)",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Release",
+                "DEBUG": "0",
+                "TERMINAL": "1"
+            }
+        },
+        {
+            "name": "release-x64w-noterm",
+            "inherits": "release-x64w",
+            "displayName": "Windows - Release (x64, No Terminal)",
+            "description": "Windows release configuration (Visual Studio, WinMain)",
+            "cacheVariables": {
+                "TERMINAL": "0"
+            }
+        },
+        {
             "name": "debug-x64ws",
             "inherits": "x64-static-windows",
             "displayName": "Windows - Debug (x64-Static)",
@@ -181,9 +212,27 @@
             "configuration": "Release"
         },
         {
-            "name": "release-x64-windows-static-noterm",
-            "configurePreset": "release-x64ws-noterm",
-            "displayName": "Windows - Release (x64-Static, No Terminal)",
+          "name": "release-x64-windows-static-noterm",
+          "configurePreset": "release-x64ws-noterm",
+          "displayName": "Windows - Release (x64-Static, No Terminal)",
+          "configuration": "Release"
+        },
+        {
+            "name": "debug-x64-windows",
+            "configurePreset": "debug-x64w",
+            "displayName": "Windows - Debug (x64)",
+            "configuration": "Debug"
+        },
+        {
+            "name": "release-x64-windows",
+            "configurePreset": "release-x64w",
+            "displayName": "Windows - Release (x64)",
+            "configuration": "Release"
+        },
+        {
+            "name": "release-x64-windows-noterm",
+            "configurePreset": "release-x64w-noterm",
+            "displayName": "Windows - Release (x64, No Terminal)",
             "configuration": "Release"
         },
         {
