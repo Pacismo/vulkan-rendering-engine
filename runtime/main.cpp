@@ -19,7 +19,7 @@
 
 using namespace std::chrono_literals;
 using engine::primitives::GouraudVertex, engine::Object, engine::CameraTransform, engine::KeyboardKey,
-    engine::KeyAction, engine::ModifierKey, engine::contains;
+    engine::KeyAction, engine::ModifierKey, engine::contains, engine::DEFAULT_FOV;
 using std::shared_ptr, std::initializer_list, engine::Window, std::string_view, std::array, std::list, std::shared_ptr;
 
 const array<GouraudVertex, 8> VERTICES = {
@@ -56,12 +56,15 @@ class Cube : public Object
 
     void physics_process(double delta) override
     {
-        transform.rotation.z = glm::mod<float>(transform.rotation.z + glm::radians(180.0) * delta, glm::radians(360.0));
+        if (rotate)
+            transform.rotation.z =
+                glm::mod<float>(transform.rotation.z + glm::radians(180.0) * delta, glm::radians(360.0));
     }
 
     void draw(engine::DrawingContext &context, const glm::mat4 &) override { mesh->draw(context, transform); }
 
     std::shared_ptr<Object> mesh;
+    bool                    rotate = true;
 };
 
 class ExampleWindow : public Window
@@ -89,16 +92,39 @@ class ExampleWindow : public Window
 
         capture_mouse(camera_mouse);
 
-        rb->set_view(camera);
+        rb->update_view(camera);
     }
 
     void on_key_action(KeyboardKey key, ModifierKey mods, KeyAction action, int scancode) override
     {
-        using KeyboardKey::Tab, KeyboardKey::Escape;
+        using KeyboardKey::Tab, KeyboardKey::Escape, KeyboardKey::F1, KeyboardKey::F2, KeyboardKey::R;
 
         switch (key) {
         case Escape:
             close();
+            break;
+        case Tab:
+            if (action == KeyAction::Press)
+                capture_mouse(camera_mouse = !camera_mouse);
+            break;
+        case F1:
+            if (action == KeyAction::Press)
+                show_demo_window = !show_demo_window;
+            break;
+        case F2:
+            if (action == KeyAction::Press)
+                show_cube_mutator = !show_cube_mutator;
+            break;
+        case R:
+            if (action == KeyAction::Press) {
+                camera.location = {2.0, 2.0, 2.0};
+                camera.rotation = {glm::radians(135.0), glm::radians(-35.0)};
+                get_render_backend()->update_fov(fov = DEFAULT_FOV);
+
+                cube->transform.location = {0.0, 0.0, 0.0};
+                cube->transform.rotation = {0.0, 0.0, 0.0};
+                cube->transform.scale    = {1.0, 1.0, 1.0};
+            }
             break;
         default:
             break;
@@ -116,14 +142,117 @@ class ExampleWindow : public Window
         camera.rotation.y = glm::clamp(camera.rotation.y + dy * COEFFICIENT.y, glm::radians(-89.9), glm::radians(89.9));
     }
 
+    void on_scroll(double xoff, double yoff) override
+    {
+        constexpr float COEFFICIENT = -5.0;
+
+        if (!camera_mouse)
+            return;
+
+        fov = glm::clamp(fov + yoff * COEFFICIENT, 15.0, 100.0);
+        get_render_backend()->update_fov(fov);
+    }
+
     static constexpr float MOTION_SPEED = 2.5;
+
+    bool show_demo_window  = false;
+    bool show_cube_mutator = false;
+
+    void cube_mutator()
+    {
+        ImGuiIO         &io    = ImGui::GetIO();
+        ImGuiWindowFlags flags = ImGuiWindowFlags_None;
+
+        if (ImGui::Begin("Cube Mutator", &show_cube_mutator, flags)) {
+            ImGui::Checkbox("Enable Rotation", &cube->rotate);
+
+            ImGui::DragFloat3("Location", &cube->transform.location.x, 1.0);
+            ImGui::DragFloat3("Rotation", &cube->transform.rotation.x, 0.1, 0.0, glm::radians(360.0), "%.3f",
+                              ImGuiSliderFlags_WrapAround);
+            ImGui::DragFloat3("Scale", &cube->transform.scale.x, 1.0);
+        }
+        ImGui::End();
+    }
+
+    void draw_hint_box()
+    {
+        static constexpr const char *strings[] = {
+            "F1  - Show ImGui Demo Window",
+            "F2  - Show Cube Mutator Window",
+            "TAB - Enable/Disable Mouse Capture",
+            "R   - Reset World",
+        };
+
+        constexpr float  PADDING = 10.0f;
+        ImGuiIO         &io      = ImGui::GetIO();
+        ImGuiWindowFlags flags   = ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_AlwaysAutoResize
+                               | ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoFocusOnAppearing
+                               | ImGuiWindowFlags_NoNav | ImGuiWindowFlags_NoMove;
+
+        auto   viewport      = ImGui::GetMainViewport();
+        auto   pos           = viewport->WorkPos;
+        auto   size          = viewport->WorkSize;
+        ImVec2 overlay_pos   = ImVec2(pos.x + size.x - PADDING, pos.y + size.y - PADDING);
+        ImVec2 overlay_pivot = ImVec2(1.0, 1.0);
+        ImGui::SetNextWindowPos(overlay_pos, ImGuiCond_Always, overlay_pivot);
+        if (ImGui::Begin("Hints", nullptr, flags)) {
+            ImGui::Text("Shortcuts");
+            const ImVec4 on_color  = ImVec4(0.0, 1.0, 0.0, 1.0);
+            const ImVec4 off_color = ImVec4(1.0, 0.0, 0.0, 1.0);
+
+            if (show_demo_window)
+                ImGui::TextColored(on_color, strings[0]);
+            else
+                ImGui::TextColored(off_color, strings[0]);
+
+            if (show_cube_mutator)
+                ImGui::TextColored(on_color, strings[1]);
+            else
+                ImGui::TextColored(off_color, strings[1]);
+
+            if (camera_mouse)
+                ImGui::TextColored(on_color, strings[2]);
+            else
+                ImGui::TextColored(off_color, strings[2]);
+
+            ImGui::Text(strings[3]);
+
+            ImGui::Separator();
+
+            std::string str = fmt::format("Location: [{: 5.3F}, {: 5.3F}, {: 5.3F}]", camera.location.x,
+                                          camera.location.y, camera.location.z);
+            ImGui::TextUnformatted(str.c_str());
+
+            str = fmt::format("Rotation: [{:>7.3F}, {:>7.3F}]", glm::degrees(camera.rotation.x),
+                              glm::degrees(camera.rotation.y));
+            ImGui::TextUnformatted(str.c_str());
+
+            str = fmt::format("FOV:      {:.1F}", fov);
+            ImGui::TextUnformatted(str.c_str());
+        }
+        ImGui::End();
+    }
+
+    void draw_ui()
+    {
+        if (camera_mouse)
+            ImGui::BeginDisabled();
+
+        if (show_cube_mutator)
+            cube_mutator();
+
+        if (show_demo_window)
+            ImGui::ShowDemoWindow(&show_demo_window);
+
+        draw_hint_box();
+
+        if (camera_mouse)
+            ImGui::EndDisabled();
+    }
 
     void process(double delta) override
     {
-        ImGui::ShowDemoWindow();
-
-        if (glfwGetKey(m_window, GLFW_KEY_TAB))
-            capture_mouse(camera_mouse = !camera_mouse);
+        draw_ui();
 
         glm::vec3 transform = {get_axis(KeyboardKey::D, KeyboardKey::A, KeyboardKey::W, KeyboardKey::S),
                                get_magnitude(KeyboardKey::Q, KeyboardKey::E)};
@@ -136,15 +265,10 @@ class ExampleWindow : public Window
             camera.location +=
                 glm::normalize(glm::vec3(camera.get_facing_matrix() * glm::vec4(transform, 1.0))) * magnitude;
         }
-        get_render_backend()->set_view(camera);
+        get_render_backend()->update_view(camera);
 
         for (auto &object : objects)
             object->physics_process(delta);
-
-        std::string new_title =
-            fmt::format("[{:3.3F}, {:3.3F}] [{:3.3F}, {:3.3F}, {:3.3F}]", glm::degrees(camera.rotation.x),
-                        glm::degrees(camera.rotation.y), camera.location.x, camera.location.y, camera.location.z);
-        glfwSetWindowTitle(m_window, new_title.c_str());
     }
 
     void handle_draw(struct engine::DrawingContext &ctx) override
@@ -157,7 +281,8 @@ class ExampleWindow : public Window
     shared_ptr<Cube>         cube    = nullptr;
     list<shared_ptr<Object>> objects = {};
 
-    bool camera_mouse = true;
+    bool  camera_mouse = true;
+    float fov          = DEFAULT_FOV;
 };
 
 static void set_spdlog_global_settings()
