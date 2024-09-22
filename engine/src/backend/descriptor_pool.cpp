@@ -6,7 +6,8 @@ using std::shared_ptr, std::span, std::vector;
 
 namespace engine
 {
-    void DescriptorPoolManager::init(std::shared_ptr<RenderDeviceManager> device_manager, uint32_t max_descriptors)
+    void DescriptorPoolManager::init(std::shared_ptr<RenderDeviceManager> device_manager, uint32_t max_descriptors,
+                                     vk::DescriptorPoolCreateFlags flags)
     {
         m_device_manager = device_manager;
         m_device         = device_manager->device;
@@ -17,6 +18,7 @@ namespace engine
         };
 
         vk::DescriptorPoolCreateInfo dp_ci = {
+            .flags         = flags,
             .maxSets       = max_descriptors,
             .poolSizeCount = 1,
             .pPoolSizes    = &size,
@@ -41,7 +43,8 @@ namespace engine
     }
 
     std::shared_ptr<DescriptorPoolManager> DescriptorPoolManager::new_shared(
-        std::shared_ptr<RenderDeviceManager> device_manager, uint32_t max_descriptors)
+        std::shared_ptr<RenderDeviceManager> device_manager, uint32_t max_descriptors,
+        vk::DescriptorPoolCreateFlags flags)
     {
         return std::shared_ptr<DescriptorPoolManager>(new DescriptorPoolManager(device_manager, max_descriptors));
     }
@@ -82,9 +85,9 @@ namespace engine
     { }
 
     DescriptorPoolManager::DescriptorPoolManager(shared_ptr<RenderDeviceManager> device_manager,
-                                                 uint32_t                        max_descriptors)
+                                                 uint32_t max_descriptors, vk::DescriptorPoolCreateFlags flags)
     {
-        init(device_manager, max_descriptors);
+        init(device_manager, max_descriptors, flags);
     }
 
     DescriptorPoolManager::~DescriptorPoolManager()

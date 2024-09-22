@@ -9,12 +9,14 @@ namespace engine
     class DescriptorPoolManager final
     {
       public:
-        void init(std::shared_ptr<RenderDeviceManager> device_manager, uint32_t max_descriptors);
+        void init(std::shared_ptr<RenderDeviceManager> device_manager, uint32_t max_descriptors,
+                  vk::DescriptorPoolCreateFlags flags = {});
         void destroy();
 
         static std::shared_ptr<DescriptorPoolManager> new_shared();
         static std::shared_ptr<DescriptorPoolManager> new_shared(std::shared_ptr<RenderDeviceManager> device_manager,
-                                                                 uint32_t                             max_descriptors);
+                                                                 uint32_t                             max_descriptors,
+                                                                 vk::DescriptorPoolCreateFlags        flags = {});
 
         std::vector<vk::DescriptorSet> get(std::span<vk::DescriptorSetLayout> layouts);
         std::vector<vk::DescriptorSet> get(vk::DescriptorSetLayout layout, size_t count);
@@ -22,10 +24,11 @@ namespace engine
         void                           reset();
 
         DescriptorPoolManager();
-        DescriptorPoolManager(std::shared_ptr<RenderDeviceManager> device_manager, uint32_t max_descriptors);
+        DescriptorPoolManager(std::shared_ptr<RenderDeviceManager> device_manager, uint32_t max_descriptors,
+                              vk::DescriptorPoolCreateFlags flags = {});
         ~DescriptorPoolManager();
 
-        vk::DescriptorPool get_pool();
+        vk::DescriptorPool       get_pool();
         const vk::DescriptorPool get_pool() const;
 
       private:
