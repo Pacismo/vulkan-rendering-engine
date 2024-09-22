@@ -1024,12 +1024,12 @@ namespace engine
         in_flight       = nullptr;
     }
 
-    void VulkanBackend::update_projection(float fov)
+    void VulkanBackend::update_fov(float fov)
     {
         m_fov = fov;
     }
 
-    void VulkanBackend::set_view(const glm::mat4 &transformation)
+    void VulkanBackend::update_view(const glm::mat4 &transformation)
     {
         m_camera = transformation;
     }
