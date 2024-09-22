@@ -53,6 +53,7 @@ namespace engine
         virtual void on_key_action(KeyboardKey key, ModifierKey modifiers, KeyAction action, int scancode);
         virtual void on_mouse_button_action(MouseButton button, ModifierKey modifiers, KeyAction action);
         virtual void on_cursor_motion(double x, double y, double dx, double dy);
+        virtual void on_scroll(double xoff, double yoff);
 
         virtual void process(double delta);
         virtual void physics_process(double delta);
@@ -84,6 +85,7 @@ namespace engine
         static void key_callback(GLFWwindow *, int key, int scancode, int action, int mods);
         static void mouse_button_callback(GLFWwindow *, int button, int action, int mods);
         static void cursor_pos_callback(GLFWwindow *, double xpos, double ypos);
-        static void handle_resize(GLFWwindow *, int width, int height);
+        static void framebuffer_resize_callback(GLFWwindow *, int width, int height);
+        static void scroll_callback(GLFWwindow *, double xoff, double yoff);
     };
 } // namespace engine
