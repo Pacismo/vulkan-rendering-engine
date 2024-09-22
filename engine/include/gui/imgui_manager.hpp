@@ -19,6 +19,8 @@ namespace engine
         void make_current();
 
         void new_frame();
+        void end_frame();
+        void update_platform_windows();
         void render(struct DrawingContext &render_context);
 
       private:

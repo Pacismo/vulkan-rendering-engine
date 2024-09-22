@@ -10,9 +10,10 @@
 
 #include <GLFW/glfw3.h>
 
+constexpr bool ENABLE_MULTIVIEWPORTS = true;
+
 namespace engine
 {
-
     ImGuiManager::ImGuiManager()
         : m_device_manager(nullptr)
         , m_descriptor_pool()
@@ -32,12 +33,16 @@ namespace engine
     void ImGuiManager::init(std::shared_ptr<VulkanBackend> backend, GLFWwindow *p_window)
     {
         m_device_manager = backend->m_device_manager;
-        m_descriptor_pool.init(backend->m_device_manager, 64);
+        // Descriptor pool as used by imgui needs the `FreeDescriptorSet` flag bit set.
+        m_descriptor_pool.init(backend->m_device_manager, 64, vk::DescriptorPoolCreateFlagBits::eFreeDescriptorSet);
 
         IMGUI_CHECKVERSION();
         mp_context  = ImGui::CreateContext();
         ImGuiIO &io = ImGui::GetIO();
-        // io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard | ImGuiConfigFlags_NavEnableGamepad;
+        io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
+
+        if constexpr (ENABLE_MULTIVIEWPORTS)
+            io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;
 
         ImGui_ImplGlfw_InitForVulkan(p_window, true);
         ImGui_ImplVulkan_InitInfo init = {
@@ -68,6 +73,10 @@ namespace engine
         ImGui_ImplVulkan_Shutdown();
         ImGui_ImplGlfw_Shutdown();
         ImGui::DestroyContext(mp_context);
+        m_descriptor_pool.destroy();
+
+        mp_context       = nullptr;
+        m_device_manager = nullptr;
     }
 
     void ImGuiManager::make_current()
@@ -81,6 +90,20 @@ namespace engine
         ImGui_ImplVulkan_NewFrame();
         ImGui_ImplGlfw_NewFrame();
         ImGui::NewFrame();
+    }
+
+    void ImGuiManager::end_frame()
+    {
+        make_current();
+        ImGui::EndFrame();
+    }
+
+    void ImGuiManager::update_platform_windows()
+    {
+        if constexpr (ENABLE_MULTIVIEWPORTS) {
+            ImGui::UpdatePlatformWindows();
+            ImGui::RenderPlatformWindowsDefault();
+        }
     }
 
     void ImGuiManager::render(DrawingContext &context)
