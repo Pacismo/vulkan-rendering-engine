@@ -99,6 +99,8 @@ namespace engine
 
     void Window::on_cursor_motion(double x, double y, double dx, double dy) { }
 
+    void Window::on_scroll(double xoff, double yoff) { }
+
     void Window::process(double delta) { }
 
     void Window::physics_process(double delta) { }
@@ -127,6 +129,7 @@ namespace engine
                     physics_process(physics_period.count());
                     next_physics = next_physics + duration_cast<system_clock::duration>(physics_period);
                 }
+                m_imgui_manager.end_frame();
 
                 time_point start = system_clock::now();
 
@@ -136,14 +139,16 @@ namespace engine
                     m_render_manager->end_draw(ctx.value());
                 }
 
-                duration dur = system_clock::now() - start;
+                m_imgui_manager.update_platform_windows();
+
+                duration<double> dur = system_clock::now() - start;
 
                 last_draw = now;
                 if (count < max)
                     count += 1;
                 avg = (avg * (count - 1) + dur.count()) / count;
                 if (now >= next_print) {
-                    spdlog::info("Average FPS: {:.2F}", 1.0 / avg);
+                    spdlog::info("Average Frametime: {:.2F}", 1.0 / avg);
                     next_print += print_period;
                 }
             }
@@ -159,6 +164,7 @@ namespace engine
 
     Window::~Window()
     {
+        m_imgui_manager.destroy();
         m_render_manager = nullptr;
 
         if (m_window)
@@ -177,9 +183,10 @@ namespace engine
         glfwSetKeyCallback(m_window, key_callback);
         glfwSetMouseButtonCallback(m_window, mouse_button_callback);
         glfwSetCursorPosCallback(m_window, cursor_pos_callback);
+        glfwSetScrollCallback(m_window, scroll_callback);
     }
 
-    void Window::key_callback(GLFWwindow *p_wnd, int key, int action, int scancode, int mods)
+    void Window::key_callback(GLFWwindow *p_wnd, int key, int scancode, int action, int mods)
     {
         Window *window = (Window *)glfwGetWindowUserPointer(p_wnd);
         window->on_key_action(KeyboardKey(key), ModifierKey(mods), KeyAction(action), scancode);
@@ -201,10 +208,17 @@ namespace engine
         window->on_cursor_motion(xpos, ypos, dx, dy);
     }
 
-    void Window::handle_resize(GLFWwindow *p_wnd, int width, int height)
+    void Window::framebuffer_resize_callback(GLFWwindow *p_wnd, int width, int height)
     {
         Window *window = (Window *)glfwGetWindowUserPointer(p_wnd);
 
         window->m_render_manager->m_framebuffer_resized = true;
+    }
+
+    void Window::scroll_callback(GLFWwindow *p_wnd, double xoff, double yoff)
+    {
+        Window *window = (Window *)glfwGetWindowUserPointer(p_wnd);
+
+        window->on_scroll(xoff, yoff);
     }
 } // namespace engine
