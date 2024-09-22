@@ -99,8 +99,8 @@ namespace engine
         };
 
       public:
-        void update_projection(float fov);
-        void set_view(const glm::mat4 &transformation);
+        void update_fov(float fov);
+        void update_view(const glm::mat4 &transformation);
 
         std::shared_ptr<class GouraudMesh> load(std::span<primitives::GouraudVertex> vertices,
                                                 std::span<uint32_t>                  indices);
@@ -159,7 +159,7 @@ namespace engine
         std::shared_ptr<VulkanAllocator> m_allocator                 = {};
         StagingBuffer                    m_staging_buffer            = {};
 
-        float                                                            m_fov        = 70.0;
+        float                                                            m_fov        = DEFAULT_FOV;
         glm::mat4                                                        m_camera     = {1.0};
         TypedHostVisibleAllocation<ViewProjectionUniform[MAX_IN_FLIGHT]> m_vp_uniform = {};
 
@@ -176,29 +176,29 @@ namespace engine
         void get_images();
 
         /// Create the pipeline
-        void                           create_pipeline();
+        void create_pipeline();
         /// Create the render pass
-        void                           create_render_pass();
+        void create_render_pass();
         /// Create a new swapchain
-        void                           create_swapchain();
+        void create_swapchain();
         /// Load the shaders
-        void                           load_shaders();
+        void load_shaders();
         /// Create the descriptor sets
-        void                           create_descriptor_set_layout();
+        void create_descriptor_set_layout();
         /// Create the descriptor pool
-        void                           create_descriptor_pools();
+        void create_descriptor_pools();
         /// Create a rendering pipeline
-        void                           create_render_pipeline();
+        void create_render_pipeline();
         /// Create the framebuffers
-        void                           create_framebuffers();
+        void create_framebuffers();
         /// Create the command pool
-        void                           create_command_pool();
+        void create_command_pool();
         /// Initialize the frame sets
-        void                           initialize_frame_sets();
+        void initialize_frame_sets();
         /// Initialize the allocator
-        void                           initialize_device_memory_allocator();
+        void initialize_device_memory_allocator();
         /// Initialize other data
-        void                           finalize_init();
+        void finalize_init();
 
         void initialize_command_buffer(vk::CommandBuffer buffer, uint32_t image_index);
 
