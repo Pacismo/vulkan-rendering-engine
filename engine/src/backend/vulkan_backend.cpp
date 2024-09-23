@@ -102,71 +102,6 @@ static vk::PhysicalDevice select_physical_device(
     return selected_device;
 }
 
-struct PreparedPipelineConfiguration
-{
-    PreparedPipelineConfiguration(PipelineConfiguration &pipeline_configuration)
-        : rasterizer(pipeline_configuration.rasterizer)
-        , multisampling(pipeline_configuration.multisampling)
-    {
-        dynamic_state = {
-            .dynamicStateCount = (uint32_t)pipeline_configuration.dynamic_states.size(),
-            .pDynamicStates    = pipeline_configuration.dynamic_states.data(),
-        };
-
-        shader_stages = {
-            {
-             .stage  = vk::ShaderStageFlagBits::eVertex,
-             .module = pipeline_configuration.vertex_shader,
-             .pName  = "main",
-             },
-            {
-             .stage  = vk::ShaderStageFlagBits::eFragment,
-             .module = pipeline_configuration.fragment_shader,
-             .pName  = "main",
-             },
-        };
-
-        vertex_input = {
-            .vertexBindingDescriptionCount   = (uint32_t)pipeline_configuration.vertex_binding_descriptions.size(),
-            .pVertexBindingDescriptions      = pipeline_configuration.vertex_binding_descriptions.data(),
-            .vertexAttributeDescriptionCount = (uint32_t)pipeline_configuration.vertex_attribute_descriptions.size(),
-            .pVertexAttributeDescriptions    = pipeline_configuration.vertex_attribute_descriptions.data(),
-        };
-
-        input_assembly = {
-            .topology               = vk::PrimitiveTopology::eTriangleList,
-            .primitiveRestartEnable = false,
-        };
-
-        viewport_state = {
-            .viewportCount = 1,
-            .scissorCount  = 1,
-        };
-
-        depth_stencil = {
-            // TODO - later configuration
-        };
-
-        color_blending = {
-            .logicOpEnable   = pipeline_configuration.color_blending.logic_op_enabled,
-            .logicOp         = pipeline_configuration.color_blending.logic_op,
-            .attachmentCount = (uint32_t)pipeline_configuration.color_blending.attachments.size(),
-            .pAttachments    = pipeline_configuration.color_blending.attachments.data(),
-            .blendConstants  = pipeline_configuration.color_blending.constants,
-        };
-    }
-
-    vk::PipelineDynamicStateCreateInfo        dynamic_state;
-    vector<vk::PipelineShaderStageCreateInfo> shader_stages;
-    vk::PipelineVertexInputStateCreateInfo    vertex_input;
-    vk::PipelineInputAssemblyStateCreateInfo  input_assembly;
-    vk::PipelineViewportStateCreateInfo       viewport_state;
-    vk::PipelineRasterizationStateCreateInfo  rasterizer;
-    vk::PipelineMultisampleStateCreateInfo    multisampling;
-    vk::PipelineDepthStencilStateCreateInfo   depth_stencil;
-    vk::PipelineColorBlendStateCreateInfo     color_blending;
-};
-
 static vk::ShaderModule create_shader_module(vk::Device device, span<const uint32_t> spirv_code)
 {
     vk::ShaderModuleCreateInfo create_info = {
@@ -318,18 +253,18 @@ namespace engine
         m_logger->info("Destroyed render manager");
 
         m_frame_sets.clear();
-        m_allocator         = nullptr;
-        m_gouraud_pipeline  = nullptr;
-        m_pipeline_layout   = nullptr;
-        m_render_pass       = nullptr;
-        m_swapchain         = nullptr;
-        m_surface           = nullptr;
-        m_window            = nullptr;
-        m_device            = nullptr;
-        m_graphics_queue    = nullptr;
-        m_present_queue     = nullptr;
-        m_device_manager    = nullptr;
-        m_instance_manager  = nullptr;
+        m_allocator        = nullptr;
+        m_gouraud_pipeline = nullptr;
+        m_pipeline_layout  = nullptr;
+        m_render_pass      = nullptr;
+        m_swapchain        = nullptr;
+        m_surface          = nullptr;
+        m_window           = nullptr;
+        m_device           = nullptr;
+        m_graphics_queue   = nullptr;
+        m_present_queue    = nullptr;
+        m_device_manager   = nullptr;
+        m_instance_manager = nullptr;
     }
 
     VulkanBackend::Unique VulkanBackend::new_unique(string_view application_name, Version application_version,
@@ -638,27 +573,9 @@ namespace engine
         pipeline_config.vertex_attribute_descriptions =
             vector(GOURAUD_VERTEX.attributes.begin(), GOURAUD_VERTEX.attributes.end());
 
-        auto config = PreparedPipelineConfiguration(pipeline_config);
+        auto config = pipeline_config.prepare(m_pipeline_layout, m_render_pass);
 
-        vk::GraphicsPipelineCreateInfo gouraud_pipeline_info = {
-            .stageCount          = (uint32_t)config.shader_stages.size(),
-            .pStages             = config.shader_stages.data(),
-            .pVertexInputState   = &config.vertex_input,
-            .pInputAssemblyState = &config.input_assembly,
-            .pViewportState      = &config.viewport_state,
-            .pRasterizationState = &config.rasterizer,
-            .pMultisampleState   = &config.multisampling,
-            .pDepthStencilState  = nullptr,
-            .pColorBlendState    = &config.color_blending,
-            .pDynamicState       = &config.dynamic_state,
-            .layout              = m_pipeline_layout,
-            .renderPass          = m_render_pass,
-            .subpass             = 0,
-            .basePipelineHandle  = nullptr,
-            .basePipelineIndex   = -1,
-        };
-
-        auto [result, pipeline] = m_device.createGraphicsPipeline(nullptr, gouraud_pipeline_info);
+        auto [result, pipeline] = m_device.createGraphicsPipeline(nullptr, config);
         if (result != vk::Result::eSuccess)
             throw VulkanException((uint32_t)result, "Failed to create graphics pipeline");
         m_logger->info("Created graphics pipeline");
