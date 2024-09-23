@@ -9,6 +9,7 @@
 #include "descriptor_pool.hpp"
 #include "drawables/GouraudMesh.hpp"
 #include "drawables/drawing_context.hpp"
+#include "swapchain.hpp"
 #include "version.hpp"
 #include "vertex.hpp"
 #include <GLFW/glfw3.h>
@@ -20,28 +21,6 @@
 
 namespace engine
 {
-    struct SwapchainSupportDetails
-    {
-        vk::SurfaceCapabilitiesKHR        capabilities;
-        std::vector<vk::SurfaceFormatKHR> formats;
-        std::vector<vk::PresentModeKHR>   modes;
-
-        /// Queries support details
-        static SwapchainSupportDetails query(vk::PhysicalDevice device, vk::SurfaceKHR surface);
-        /// Ensures that there is at least one surface format and one surface present mode
-        static bool                    supported(vk::PhysicalDevice device, vk::SurfaceKHR surface);
-    };
-
-    struct SwapchainConfiguration
-    {
-        vk::Format         format       = {};
-        vk::ColorSpaceKHR  color_space  = {};
-        vk::PresentModeKHR present_mode = {};
-        vk::Extent2D       extent       = {};
-        uint32_t           image_count  = {};
-        uint32_t           image_layers = {};
-    };
-
     struct GpuSync
     {
         vk::Semaphore image_available = {};
@@ -142,13 +121,9 @@ namespace engine
         vk::Queue                        m_graphics_queue            = {};
         vk::Queue                        m_present_queue             = {};
         vk::SurfaceKHR                   m_surface                   = {};
-        vk::SwapchainKHR                 m_swapchain                 = {};
-        std::vector<vk::Image>           m_images                    = {};
-        std::vector<vk::ImageView>       m_image_views               = {};
-        vk::RenderPass                   m_render_pass               = {};
+        SwapchainManager                 m_swapchain                 = {};
         vk::PipelineLayout               m_pipeline_layout           = {};
         vk::Pipeline                     m_gouraud_pipeline          = {};
-        std::vector<vk::Framebuffer>     m_framebuffers              = {};
         CommandPoolManager               m_command_pool              = {};
         DescriptorPoolManager            m_descriptor_pool           = {};
         std::vector<FrameSet>            m_frame_sets                = {};
@@ -161,9 +136,7 @@ namespace engine
         glm::mat4                                                        m_camera     = {1.0};
         TypedHostVisibleAllocation<ViewProjectionUniform[MAX_IN_FLIGHT]> m_vp_uniform = {};
 
-        SwapchainConfiguration m_swapchain_config    = {};
         bool                   m_framebuffer_resized = false;
-        bool                   m_valid_framebuffer   = {};
 
       private:
         VulkanBackend(std::string_view application_name, Version application_version, GLFWwindow *window);
@@ -171,13 +144,8 @@ namespace engine
 
         // Pipeline initialization functions
 
-        /// Get the images owned by the swapchain
-        void get_images();
-
         /// Create the pipeline
         void create_pipeline();
-        /// Create the render pass
-        void create_render_pass();
         /// Create a new swapchain
         void create_swapchain();
         /// Load the shaders
@@ -188,8 +156,6 @@ namespace engine
         void create_descriptor_pools();
         /// Create a rendering pipeline
         void create_render_pipeline();
-        /// Create the framebuffers
-        void create_framebuffers();
         /// Create the command pool
         void create_command_pool();
         /// Initialize the frame sets
@@ -200,8 +166,5 @@ namespace engine
         void finalize_init();
 
         void initialize_command_buffer(vk::CommandBuffer buffer, uint32_t image_index);
-
-        /// Destroy the swapchain, its images, and the framebuffers
-        void destroy_swapchain();
     };
 } // namespace engine

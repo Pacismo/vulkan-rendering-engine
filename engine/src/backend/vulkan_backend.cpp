@@ -147,29 +147,6 @@ namespace engine
         }
     }
 
-    SwapchainSupportDetails SwapchainSupportDetails::query(vk::PhysicalDevice device, vk::SurfaceKHR surface)
-    {
-        return SwapchainSupportDetails {
-            .capabilities = device.getSurfaceCapabilitiesKHR(surface),
-            .formats      = device.getSurfaceFormatsKHR(surface),
-            .modes        = device.getSurfacePresentModesKHR(surface),
-        };
-    }
-
-    bool SwapchainSupportDetails::supported(vk::PhysicalDevice device, vk::SurfaceKHR surface)
-    {
-        uint32_t format_count = 0;
-        uint32_t mode_count   = 0;
-
-        if (VkResult result = vkGetPhysicalDeviceSurfaceFormatsKHR(device, surface, &format_count, nullptr))
-            throw VulkanException((uint32_t)result, "Failed to query surface formats");
-
-        if (VkResult result = vkGetPhysicalDeviceSurfacePresentModesKHR(device, surface, &mode_count, nullptr))
-            throw VulkanException((uint32_t)result, "Failed to query surface present modes");
-
-        return format_count > 0 && mode_count > 0;
-    }
-
     VulkanBackend::VulkanBackend(string_view application_name, Version application_version, GLFWwindow *window)
         : m_logger(get_logger())
         , m_window(window)
@@ -216,7 +193,7 @@ namespace engine
 
     VulkanBackend::~VulkanBackend()
     {
-        destroy_swapchain();
+        m_swapchain.destroy();
 
         m_staging_buffer.deinit(m_device, m_command_pool.get_pool(), *m_allocator);
 
@@ -236,16 +213,13 @@ namespace engine
         if (m_uniform_descriptor_layout)
             m_device.destroyDescriptorSetLayout(m_uniform_descriptor_layout);
 
-        if (m_render_pass)
-            m_device.destroyRenderPass(m_render_pass);
-
         if (m_vertex_shader)
             m_device.destroyShaderModule(m_vertex_shader);
         if (m_fragment_shader)
             m_device.destroyShaderModule(m_fragment_shader);
 
         if (m_swapchain)
-            m_device.destroySwapchainKHR(m_swapchain);
+            m_swapchain.destroy();
 
         if (m_surface)
             m_instance_manager->instance.destroySurfaceKHR(m_surface);
@@ -256,8 +230,6 @@ namespace engine
         m_allocator        = nullptr;
         m_gouraud_pipeline = nullptr;
         m_pipeline_layout  = nullptr;
-        m_render_pass      = nullptr;
-        m_swapchain        = nullptr;
         m_surface          = nullptr;
         m_window           = nullptr;
         m_device           = nullptr;
@@ -283,147 +255,63 @@ namespace engine
         m_device.waitIdle();
     }
 
-    void VulkanBackend::create_render_pass()
-    {
-        vk::AttachmentDescription color_attachment = {
-            .format         = m_swapchain_config.format,
-            .samples        = vk::SampleCountFlagBits::e1,
-            .loadOp         = vk::AttachmentLoadOp::eClear,
-            .storeOp        = vk::AttachmentStoreOp::eStore,
-            .stencilLoadOp  = vk::AttachmentLoadOp::eDontCare,
-            .stencilStoreOp = vk::AttachmentStoreOp::eDontCare,
-            .initialLayout  = vk::ImageLayout::eUndefined,
-            .finalLayout    = vk::ImageLayout::ePresentSrcKHR,
-        };
-
-        vk::AttachmentReference color_attachment_reference = {
-            .attachment = 0,
-            .layout     = vk::ImageLayout::eColorAttachmentOptimal,
-        };
-
-        vk::SubpassDescription subpass_description = {
-            .pipelineBindPoint    = vk::PipelineBindPoint::eGraphics,
-            .colorAttachmentCount = 1,
-            .pColorAttachments    = &color_attachment_reference,
-        };
-
-        vk::SubpassDependency subpass = {
-            .srcSubpass    = vk::SubpassExternal,
-            .dstSubpass    = 0,
-            .srcStageMask  = vk::PipelineStageFlagBits::eColorAttachmentOutput,
-            .dstStageMask  = vk::PipelineStageFlagBits::eColorAttachmentOutput,
-            .srcAccessMask = vk::AccessFlagBits::eNone,
-            .dstAccessMask = vk::AccessFlagBits::eColorAttachmentWrite,
-        };
-
-        vk::RenderPassCreateInfo render_pass_create_info = {
-            .attachmentCount = 1,
-            .pAttachments    = &color_attachment,
-            .subpassCount    = 1,
-            .pSubpasses      = &subpass_description,
-            .dependencyCount = 1,
-            .pDependencies   = &subpass,
-        };
-
-        m_render_pass = m_device.createRenderPass(render_pass_create_info);
-        m_logger->info("Created render pass");
-    }
-
     void VulkanBackend::create_pipeline()
     {
         create_swapchain();
-        get_images();
-        create_render_pass();
         load_shaders();
         create_descriptor_set_layout();
         create_render_pipeline();
-        create_framebuffers();
         create_command_pool();
         create_descriptor_pools();
         initialize_frame_sets();
         initialize_device_memory_allocator();
 
         finalize_init();
-
-        m_valid_framebuffer = m_swapchain_config.extent.width != 0 && m_swapchain_config.extent.height != 0;
-    }
-
-    void VulkanBackend::destroy_swapchain()
-    {
-        wait_idle();
-
-        for (vk::Framebuffer framebuffer : m_framebuffers)
-            m_device.destroyFramebuffer(framebuffer);
-        m_framebuffers.clear();
-
-        for (vk::ImageView view : m_image_views)
-            m_device.destroyImageView(view);
-
-        m_image_views.clear();
-        m_images.clear();
-
-        m_logger->info("Destroyed swapchain");
     }
 
     bool VulkanBackend::recreate_swapchain()
     {
-        if (m_valid_framebuffer)
-            destroy_swapchain();
+        auto swapchain_support_details = SwapchainSupportDetails::query(m_device_manager->physical_device, m_surface);
 
-        int width = 0, height = 0;
-        glfwGetFramebufferSize(m_window, &width, &height);
+        uint32_t image_count = swapchain_support_details.capabilities.minImageCount + 1;
+        if (auto max = swapchain_support_details.capabilities.maxImageCount)
+            image_count = min(image_count, max);
 
-        if (width == 0 || height == 0) {
-            return false;
-        }
+        auto format = select_format(swapchain_support_details.formats);
 
-        create_swapchain();
-        get_images();
-        create_framebuffers();
+        SwapchainConfiguration config {
+            .format       = format.format,
+            .color_space  = format.colorSpace,
+            .present_mode = select_present_mode(swapchain_support_details.modes),
+            .extent       = select_extent(swapchain_support_details.capabilities, m_window),
+            .image_count  = image_count,
+            .image_layers = 1,
+        };
 
-        return true;
+        return m_swapchain.recreate_swapchain(config);
+        m_logger->info("Recreated swapchain");
     }
 
     void VulkanBackend::create_swapchain()
     {
         auto swapchain_support_details = SwapchainSupportDetails::query(m_device_manager->physical_device, m_surface);
 
-        auto format                     = select_format(swapchain_support_details.formats);
-        m_swapchain_config.format       = format.format;
-        m_swapchain_config.color_space  = format.colorSpace;
-        m_swapchain_config.present_mode = select_present_mode(swapchain_support_details.modes);
-        m_swapchain_config.extent       = select_extent(swapchain_support_details.capabilities, m_window);
-
         uint32_t image_count = swapchain_support_details.capabilities.minImageCount + 1;
         if (auto max = swapchain_support_details.capabilities.maxImageCount)
             image_count = min(image_count, max);
-        m_swapchain_config.image_count = image_count;
 
-        m_swapchain_config.image_layers = 1;
+        auto format = select_format(swapchain_support_details.formats);
 
-        uint32_t queue_families[2] = {m_device_manager->graphics_queue.index, m_device_manager->present_queue.index};
-
-        bool same_queues = queue_families[0] == queue_families[1];
-
-        vk::SwapchainCreateInfoKHR swapchain_create_info = {
-            .surface               = m_surface,
-            .minImageCount         = m_swapchain_config.image_count,
-            .imageFormat           = m_swapchain_config.format,
-            .imageColorSpace       = m_swapchain_config.color_space,
-            .imageExtent           = m_swapchain_config.extent,
-            .imageArrayLayers      = m_swapchain_config.image_layers,
-            .imageUsage            = vk::ImageUsageFlagBits::eColorAttachment,
-            .imageSharingMode      = same_queues ? vk::SharingMode::eExclusive : vk::SharingMode::eConcurrent,
-            .queueFamilyIndexCount = same_queues ? 0u : 2u,
-            .pQueueFamilyIndices   = same_queues ? nullptr : queue_families,
-            .preTransform          = swapchain_support_details.capabilities.currentTransform,
-            .compositeAlpha        = vk::CompositeAlphaFlagBitsKHR::eOpaque,
-            .presentMode           = m_swapchain_config.present_mode,
-            .clipped               = true,
-            .oldSwapchain          = m_swapchain, // Should be NULL for the first call
+        SwapchainConfiguration config {
+            .format       = format.format,
+            .color_space  = format.colorSpace,
+            .present_mode = select_present_mode(swapchain_support_details.modes),
+            .extent       = select_extent(swapchain_support_details.capabilities, m_window),
+            .image_count  = image_count,
+            .image_layers = 1,
         };
 
-        m_swapchain = m_device.createSwapchainKHR(swapchain_create_info);
+        m_swapchain.init(m_device_manager, m_surface, config);
         m_logger->info("Created swapchain");
     }
 
@@ -464,44 +352,6 @@ namespace engine
     void VulkanBackend::create_descriptor_pools()
     {
         m_descriptor_pool.init(m_device_manager, MAX_IN_FLIGHT * MAX_DESCRIPTORS);
-    }
-
-    static vector<vk::ImageView> create_image_views(vk::Device device, span<vk::Image> images, vk::Format format,
-                                                    uint32_t image_layers)
-    {
-        vector<vk::ImageView> image_views;
-        image_views.reserve(images.size());
-
-        for (vk::Image image : images) {
-            vk::ImageViewCreateInfo create_info = {
-                .image            = image,
-                .viewType         = vk::ImageViewType::e2D,
-                .format           = format,
-                .components       = {.r = vk::ComponentSwizzle::eIdentity,
-                                     .g = vk::ComponentSwizzle::eIdentity,
-                                     .b = vk::ComponentSwizzle::eIdentity,
-                                     .a = vk::ComponentSwizzle::eIdentity},
-                .subresourceRange = {.aspectMask     = vk::ImageAspectFlagBits::eColor,
-                                     .baseMipLevel   = 0,
-                                     .levelCount     = 1,
-                                     .baseArrayLayer = 0,
-                                     .layerCount     = image_layers},
-            };
-
-            image_views.push_back(device.createImageView(create_info));
-        }
-
-        return image_views;
-    }
-
-    void VulkanBackend::get_images()
-    {
-        m_images = m_device.getSwapchainImagesKHR(m_swapchain);
-
-        m_image_views =
-            create_image_views(m_device, m_images, m_swapchain_config.format, m_swapchain_config.image_layers);
-
-        m_logger->info("Created {} image views", m_image_views.size());
     }
 
     void VulkanBackend::create_render_pipeline()
@@ -573,7 +423,7 @@ namespace engine
         pipeline_config.vertex_attribute_descriptions =
             vector(GOURAUD_VERTEX.attributes.begin(), GOURAUD_VERTEX.attributes.end());
 
-        auto config = pipeline_config.prepare(m_pipeline_layout, m_render_pass);
+        auto config = pipeline_config.prepare(m_pipeline_layout, m_swapchain.render_pass);
 
         auto [result, pipeline] = m_device.createGraphicsPipeline(nullptr, config);
         if (result != vk::Result::eSuccess)
@@ -581,30 +431,6 @@ namespace engine
         m_logger->info("Created graphics pipeline");
 
         m_gouraud_pipeline = pipeline;
-    }
-
-    void VulkanBackend::create_framebuffers()
-    {
-        m_framebuffers.resize(m_images.size());
-
-        for (size_t i = 0; i < m_framebuffers.size(); ++i) {
-            array<vk::ImageView, 1> attachments = {
-                m_image_views[i],
-            };
-
-            vk::FramebufferCreateInfo framebuffer_create_info = {
-                .renderPass      = m_render_pass,
-                .attachmentCount = attachments.size(),
-                .pAttachments    = attachments.data(),
-                .width           = m_swapchain_config.extent.width,
-                .height          = m_swapchain_config.extent.height,
-                .layers          = m_swapchain_config.image_layers,
-            };
-
-            m_framebuffers[i] = m_device.createFramebuffer(framebuffer_create_info);
-        }
-
-        m_logger->info("Created framebuffers");
     }
 
     void VulkanBackend::create_command_pool()
@@ -644,8 +470,8 @@ namespace engine
     {
         constexpr uint64_t TIMEOUT = std::numeric_limits<uint64_t>::max();
 
-        if (!m_valid_framebuffer) {
-            m_valid_framebuffer = recreate_swapchain();
+        if (!m_swapchain) {
+            recreate_swapchain();
             return nullopt;
         }
 
@@ -658,7 +484,7 @@ namespace engine
 
         auto [ia_result, image_index] = m_device.acquireNextImageKHR(m_swapchain, TIMEOUT, set.sync.image_available);
         if (ia_result == vk::Result::eErrorOutOfDateKHR) {
-            m_valid_framebuffer = recreate_swapchain();
+            recreate_swapchain();
             return nullopt;
         } else if (ia_result != vk::Result::eSuccess)
             throw VulkanException((uint32_t)ia_result, "Failed to acquire image");
@@ -670,8 +496,8 @@ namespace engine
 
         m_vp_uniform[frame] = {
             .view       = m_camera,
-            .projection = glm::perspectiveFovZO<float>(glm::radians(m_fov), m_swapchain_config.extent.width,
-                                                       m_swapchain_config.extent.height, 0.1, 10.0),
+            .projection = glm::perspectiveFovZO<float>(glm::radians(m_fov), m_swapchain.configuration.extent.width,
+                                                       m_swapchain.configuration.extent.height, 0.1, 10.0),
         };
         m_vp_uniform[frame].projection[1][1] *= -1.0f;
         m_vp_uniform.flush();
@@ -720,7 +546,7 @@ namespace engine
             .waitSemaphoreCount = 1,
             .pWaitSemaphores    = &set.sync.render_finished,
             .swapchainCount     = 1,
-            .pSwapchains        = &m_swapchain,
+            .pSwapchains        = &m_swapchain.swapchain,
             .pImageIndices      = &image_index,
             .pResults           = nullptr,
         };
@@ -734,7 +560,7 @@ namespace engine
 
         if (should_recreate_swapchain || m_framebuffer_resized) {
             m_framebuffer_resized = false;
-            m_valid_framebuffer   = recreate_swapchain();
+            recreate_swapchain();
         }
 
         m_frame_index = ++m_frame_index % MAX_IN_FLIGHT;
@@ -752,9 +578,9 @@ namespace engine
         vk::ClearValue clear_value = vk::ClearValue {vk::ClearColorValue {array {0.0f, 0.0f, 0.0f, 1.0f}}};
 
         vk::RenderPassBeginInfo render_pass_begin = {
-            .renderPass      = m_render_pass,
-            .framebuffer     = m_framebuffers[image_index],
-            .renderArea      = {.offset = {0, 0}, .extent = m_swapchain_config.extent},
+            .renderPass      = m_swapchain.render_pass,
+            .framebuffer     = m_swapchain[image_index].framebuffer,
+            .renderArea      = {.offset = {0, 0}, .extent = m_swapchain.configuration.extent},
             .clearValueCount = 1,
             .pClearValues    = &clear_value,
         };
@@ -762,15 +588,15 @@ namespace engine
         vk::Viewport viewport = {
             .x        = 0.0,
             .y        = 0.0,
-            .width    = (float)m_swapchain_config.extent.width,
-            .height   = (float)m_swapchain_config.extent.height,
+            .width    = (float)m_swapchain.configuration.extent.width,
+            .height   = (float)m_swapchain.configuration.extent.height,
             .minDepth = 0.0,
             .maxDepth = 1.0,
         };
 
         vk::Rect2D scissor = {
             .offset = {0, 0},
-            .extent = m_swapchain_config.extent,
+            .extent = m_swapchain.configuration.extent,
         };
 
         buffer.beginRenderPass(render_pass_begin, vk::SubpassContents::eInline);

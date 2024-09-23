@@ -29,7 +29,7 @@ set(ENGINE_SOURCES
     "src/gui/imgui_manager.cpp"          "include/gui/imgui_manager.hpp"
 
     "src/drawables/GouraudMesh.cpp"      "include/drawables/GouraudMesh.hpp"
-)
+    "src/backend/swapchain.cpp"          "include/backend/swapchain.hpp")
 
 add_library(engine ${ENGINE_SOURCES})
 

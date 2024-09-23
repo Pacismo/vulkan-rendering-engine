@@ -52,7 +52,7 @@ namespace engine
             .QueueFamily     = m_device_manager->graphics_queue.index,
             .Queue           = m_device_manager->graphics_queue.handle,
             .DescriptorPool  = m_descriptor_pool.get_pool(),
-            .RenderPass      = backend.m_render_pass,
+            .RenderPass      = backend.m_swapchain.render_pass,
             .MinImageCount   = MAX_IN_FLIGHT,
             .ImageCount      = MAX_IN_FLIGHT + 1,
             .MSAASamples     = VK_SAMPLE_COUNT_1_BIT,

@@ -49,7 +49,7 @@ namespace engine
 
         set_glfw_callbacks();
 
-        m_backend = VulkanBackend::new_from(other.m_backend, m_window);
+        m_backend = VulkanBackend::new_from(*other.m_backend, m_window);
         m_imgui_manager.init(*m_backend, m_window);
     }
 

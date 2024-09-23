@@ -30,7 +30,7 @@ namespace engine
 
         std::shared_ptr<spdlog::logger>              logger           = {};
         std::shared_ptr<class VulkanInstanceManager> instance_manager = {};
-        std::weak_ptr<VulkanAllocator>               allocator        = {}; // Weak to prevent cyclic reference
+        std::weak_ptr<class VulkanAllocator>         allocator        = {}; // Weak to prevent cyclic reference
         vk::DispatchLoaderDynamic                    dispatch         = {};
         vk::PhysicalDevice                           physical_device  = {};
         vk::Device                                   device           = {};
