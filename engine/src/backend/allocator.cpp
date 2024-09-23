@@ -1,8 +1,20 @@
 #include "backend/allocator.hpp"
 #include "backend/instance_manager.hpp"
 
+using std::shared_ptr, std::make_shared;
+
 namespace engine
 {
+    shared_ptr<VulkanAllocator> VulkanAllocator::new_shared(RenderDeviceManager::Shared device_manager)
+    {
+        if (shared_ptr<VulkanAllocator> ptr = device_manager->allocator.lock())
+            return ptr;
+
+        auto ptr = shared_ptr<VulkanAllocator>(new VulkanAllocator(device_manager));
+        device_manager->allocator = ptr;
+        return ptr;
+    }
+
     VulkanAllocator::VulkanAllocator(RenderDeviceManager::Shared device_manager)
         : m_device_manager(device_manager)
     {

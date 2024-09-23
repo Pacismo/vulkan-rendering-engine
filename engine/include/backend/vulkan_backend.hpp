@@ -139,6 +139,7 @@ namespace engine
         uint32_t                         m_frame_index               = 0;
         GLFWwindow                      *m_window                    = {};
         vk::Device                       m_device                    = {};
+        std::shared_ptr<VulkanAllocator> m_allocator                 = {};
         vk::Queue                        m_graphics_queue            = {};
         vk::Queue                        m_present_queue             = {};
         vk::SurfaceKHR                   m_surface                   = {};
@@ -156,7 +157,6 @@ namespace engine
         vk::ShaderModule                 m_vertex_shader             = {};
         vk::ShaderModule                 m_fragment_shader           = {};
         vk::DescriptorSetLayout          m_uniform_descriptor_layout = {};
-        std::shared_ptr<VulkanAllocator> m_allocator                 = {};
         StagingBuffer                    m_staging_buffer            = {};
 
         float                                                            m_fov        = DEFAULT_FOV;

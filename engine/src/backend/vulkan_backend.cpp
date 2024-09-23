@@ -842,7 +842,7 @@ namespace engine
 
     void VulkanBackend::initialize_device_memory_allocator()
     {
-        m_allocator           = shared_ptr<VulkanAllocator>(new VulkanAllocator(m_device_manager));
+        m_allocator           = VulkanAllocator::new_shared(m_device_manager);
         vk::CommandBuffer cmd = m_command_pool.get();
         vk::Fence fence       = m_device.createFence(vk::FenceCreateInfo {.flags = vk::FenceCreateFlagBits::eSignaled});
 
