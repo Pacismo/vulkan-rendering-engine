@@ -497,7 +497,7 @@ namespace engine
         m_vp_uniform[frame] = {
             .view       = m_camera,
             .projection = glm::perspectiveFovZO<float>(glm::radians(m_fov), m_swapchain.configuration.extent.width,
-                                                       m_swapchain.configuration.extent.height, 0.1, 10.0),
+                                                       m_swapchain.configuration.extent.height, 0.1, 100.0),
         };
         m_vp_uniform[frame].projection[1][1] *= -1.0f;
         m_vp_uniform.flush();
