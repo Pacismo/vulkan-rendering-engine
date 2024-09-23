@@ -45,12 +45,12 @@ const array<uint32_t, 36> INDICES = {
 class Cube : public Object
 {
   public:
-    Cube(std::shared_ptr<engine::VulkanBackend> &backend)
+    Cube(engine::VulkanBackend &backend)
     {
         auto vertices = VERTICES;
         auto indices  = INDICES;
 
-        mesh                     = backend->load(vertices, indices);
+        mesh                     = backend.load(vertices, indices);
         mesh->transform.location = {0.0, 0.0, -0.5};
     }
 
@@ -82,7 +82,7 @@ class ExampleWindow : public Window
     ExampleWindow(string_view title, int width, int height)
         : Window(title, width, height, "Runtime", {0, 1, 0})
     {
-        auto rb = get_render_backend();
+        auto &rb = get_render_backend();
 
         cube = shared_ptr<Cube>(new Cube(rb));
         objects.push_back(cube);
@@ -92,7 +92,7 @@ class ExampleWindow : public Window
 
         capture_mouse(camera_mouse);
 
-        rb->update_view(camera);
+        rb.update_view(camera);
     }
 
     void on_key_action(KeyboardKey key, ModifierKey mods, KeyAction action, int scancode) override
@@ -119,7 +119,7 @@ class ExampleWindow : public Window
             if (action == KeyAction::Press) {
                 camera.location = {2.0, 2.0, 2.0};
                 camera.rotation = {glm::radians(135.0), glm::radians(-35.0)};
-                get_render_backend()->update_fov(fov = DEFAULT_FOV);
+                get_render_backend().update_fov(fov = DEFAULT_FOV);
 
                 cube->transform.location = {0.0, 0.0, 0.0};
                 cube->transform.rotation = {0.0, 0.0, 0.0};
@@ -150,7 +150,7 @@ class ExampleWindow : public Window
             return;
 
         fov = glm::clamp(fov + yoff * COEFFICIENT, 15.0, 100.0);
-        get_render_backend()->update_fov(fov);
+        get_render_backend().update_fov(fov);
     }
 
     static constexpr float MOTION_SPEED = 2.5;
@@ -265,7 +265,7 @@ class ExampleWindow : public Window
             camera.location +=
                 glm::normalize(glm::vec3(camera.get_facing_matrix() * glm::vec4(transform, 1.0))) * magnitude;
         }
-        get_render_backend()->update_view(camera);
+        get_render_backend().update_view(camera);
 
         for (auto &object : objects)
             object->physics_process(delta);
