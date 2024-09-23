@@ -34,8 +34,8 @@ namespace engine
 
         set_glfw_callbacks();
 
-        m_render_manager = VulkanBackend::new_shared(application_name, application_version, m_window);
-        m_imgui_manager.init(m_render_manager, m_window);
+        m_backend = VulkanBackend::new_unique(application_name, application_version, m_window);
+        m_imgui_manager.init(*m_backend, m_window);
     }
 
     Window::Window(string_view title, int32_t width, int32_t height, const Window &other)
@@ -49,8 +49,8 @@ namespace engine
 
         set_glfw_callbacks();
 
-        m_render_manager = VulkanBackend::new_shared(other.m_render_manager, m_window);
-        m_imgui_manager.init(m_render_manager, m_window);
+        m_backend = VulkanBackend::new_from(other.m_backend, m_window);
+        m_imgui_manager.init(*m_backend, m_window);
     }
 
     void Window::show()
@@ -88,9 +88,9 @@ namespace engine
         glfwSetWindowTitle(m_window, new_title.data());
     }
 
-    Window::SharedRenderManager Window::get_render_backend()
+    VulkanBackend &Window::get_render_backend()
     {
-        return m_render_manager;
+        return *m_backend;
     }
 
     void Window::on_key_action(KeyboardKey key, ModifierKey modifiers, KeyAction action, int scancode) { }
@@ -133,10 +133,10 @@ namespace engine
 
                 time_point start = system_clock::now();
 
-                if (optional<DrawingContext> ctx = m_render_manager->begin_draw()) {
+                if (optional<DrawingContext> ctx = m_backend->begin_draw()) {
                     handle_draw(ctx.value());
                     m_imgui_manager.render(ctx.value());
-                    m_render_manager->end_draw(ctx.value());
+                    m_backend->end_draw(ctx.value());
                 }
 
                 m_imgui_manager.update_platform_windows();
@@ -159,13 +159,13 @@ namespace engine
             throw VulkanException(code.value(), message);
         }
 
-        m_render_manager->wait_idle();
+        m_backend->wait_idle();
     }
 
     Window::~Window()
     {
         m_imgui_manager.destroy();
-        m_render_manager = nullptr;
+        m_backend = nullptr;
 
         if (m_window)
             glfwDestroyWindow(m_window);
@@ -212,7 +212,7 @@ namespace engine
     {
         Window *window = (Window *)glfwGetWindowUserPointer(p_wnd);
 
-        window->m_render_manager->m_framebuffer_resized = true;
+        window->m_backend->m_framebuffer_resized = true;
     }
 
     void Window::scroll_callback(GLFWwindow *p_wnd, double xoff, double yoff)

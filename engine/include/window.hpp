@@ -26,9 +26,6 @@ namespace engine
      */
     class Window
     {
-        friend class VulkanBackend;
-        using SharedRenderManager = std::shared_ptr<class VulkanBackend>;
-
       public:
         /// Create a new window, creating new instance and device configurations.
         Window(std::string_view title, int32_t width, int32_t height, std::string_view application_name = "app_runtime",
@@ -46,7 +43,7 @@ namespace engine
 
         void set_title(std::string_view new_title);
 
-        SharedRenderManager get_render_backend();
+        class VulkanBackend &get_render_backend();
 
         virtual void handle_draw(struct DrawingContext &context) = 0;
 
@@ -77,8 +74,8 @@ namespace engine
         double last_mouse_y = 0.0;
 
       private:
-        std::shared_ptr<spdlog::logger> m_logger;
-        SharedRenderManager             m_render_manager = {};
+        std::shared_ptr<spdlog::logger>      m_logger;
+        std::unique_ptr<class VulkanBackend> m_backend = {};
 
         void set_glfw_callbacks();
 
