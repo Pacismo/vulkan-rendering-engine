@@ -3,6 +3,7 @@
 #include "backend/descriptor_pool.hpp"
 #include "backend/device_manager.hpp"
 #include "backend/instance_manager.hpp"
+#include "backend/pipeline_configuration.hpp"
 #include "backend/vertex_description.hpp"
 #include "constants.hpp"
 #include "exceptions.hpp"
@@ -24,6 +25,8 @@
 
 using std::swap, std::string_view, std::vector, std::shared_ptr, std::stringstream, std::span, std::tuple,
     std::numeric_limits, std::clamp, std::min, std::array, std::optional, std::nullopt, std::array;
+
+using engine::PipelineConfiguration;
 
 static vk::SurfaceKHR create_surface(vk::Instance instance, GLFWwindow *window)
 {
@@ -98,34 +101,6 @@ static vk::PhysicalDevice select_physical_device(
 
     return selected_device;
 }
-
-struct ColorBlending
-{
-    using Attachment = vk::PipelineColorBlendAttachmentState;
-
-    bool                    logic_op_enabled = false;
-    vk::LogicOp             logic_op         = {};
-    std::vector<Attachment> attachments      = {};
-    std::array<float, 4>    constants        = {};
-};
-
-struct PipelineConfiguration
-{
-    using VertexBindingDescriptions   = std::vector<vk::VertexInputBindingDescription>;
-    using VertexAttributeDescriptions = std::vector<vk::VertexInputAttributeDescription>;
-    using DynamicStates               = std::vector<vk::DynamicState>;
-    using RasterizerConfiguration     = vk::PipelineRasterizationStateCreateInfo;
-    using MultisampleConfiguration    = vk::PipelineMultisampleStateCreateInfo;
-
-    vk::ShaderModule            vertex_shader                 = {};
-    vk::ShaderModule            fragment_shader               = {};
-    VertexBindingDescriptions   vertex_binding_descriptions   = {};
-    VertexAttributeDescriptions vertex_attribute_descriptions = {};
-    DynamicStates               dynamic_states                = {};
-    RasterizerConfiguration     rasterizer                    = {};
-    MultisampleConfiguration    multisampling                 = {};
-    ColorBlending               color_blending                = {};
-};
 
 struct PreparedPipelineConfiguration
 {
@@ -283,8 +258,6 @@ namespace engine
         m_graphics_queue = m_device_manager->graphics_queue.handle;
         m_present_queue  = m_device_manager->present_queue.handle;
 
-        glfwSetFramebufferSizeCallback(m_window, handle_framebuffer_resize);
-
         create_pipeline();
     }
 
@@ -303,8 +276,6 @@ namespace engine
         if (!SwapchainSupportDetails::supported(m_device_manager->physical_device, m_surface))
             throw Exception("The device passed does not support this surface");
 
-        glfwSetFramebufferSizeCallback(m_window, handle_framebuffer_resize);
-
         create_pipeline();
     }
 
@@ -321,9 +292,6 @@ namespace engine
 
         if (m_gouraud_pipeline)
             m_device.destroyPipeline(m_gouraud_pipeline);
-
-        if (m_textured_pipeline)
-            m_device.destroyPipeline(m_textured_pipeline);
 
         m_command_pool.destroy();
 
@@ -352,7 +320,6 @@ namespace engine
         m_frame_sets.clear();
         m_allocator         = nullptr;
         m_gouraud_pipeline  = nullptr;
-        m_textured_pipeline = nullptr;
         m_pipeline_layout   = nullptr;
         m_render_pass       = nullptr;
         m_swapchain         = nullptr;
@@ -365,82 +332,20 @@ namespace engine
         m_instance_manager  = nullptr;
     }
 
-    VulkanBackend::Shared VulkanBackend::new_shared(string_view application_name, Version application_version,
+    VulkanBackend::Unique VulkanBackend::new_unique(string_view application_name, Version application_version,
                                                     GLFWwindow *window)
     {
-        return Shared(new VulkanBackend(application_name, application_version, window));
+        return Unique(new VulkanBackend(application_name, application_version, window));
     }
 
-    VulkanBackend::Shared VulkanBackend::new_shared(const Shared &other, GLFWwindow *window)
+    VulkanBackend::Unique VulkanBackend::new_from(const VulkanBackend &other, GLFWwindow *window)
     {
-        return Shared(new VulkanBackend(*other, window));
+        return Unique(new VulkanBackend(other, window));
     }
 
     void VulkanBackend::wait_idle()
     {
         m_device.waitIdle();
-    }
-
-    VulkanBackend::VulkanBackend(VulkanBackend &&other) noexcept
-        : m_logger(std::move(other.m_logger))
-        , m_instance_manager(std::move(other.m_instance_manager))
-        , m_device_manager(std::move(other.m_device_manager))
-        , m_window(std::move(other.m_window))
-        , m_device(std::move(other.m_device))
-        , m_graphics_queue(std::move(other.m_graphics_queue))
-        , m_present_queue(std::move(other.m_present_queue))
-        , m_surface(std::move(other.m_surface))
-        , m_images(std::move(other.m_images))
-        , m_image_views(std::move(other.m_image_views))
-        , m_render_pass(std::move(other.m_render_pass))
-        , m_pipeline_layout(std::move(other.m_pipeline_layout))
-        , m_gouraud_pipeline(std::move(other.m_gouraud_pipeline))
-        , m_command_pool(std::move(other.m_command_pool))
-        , m_frame_sets(std::move(other.m_frame_sets))
-        , m_descriptor_pool(std::move(other.m_descriptor_pool))
-        , m_swapchain_config(std::move(other.m_swapchain_config))
-        , m_vertex_shader(std::move(other.m_vertex_shader))
-        , m_fragment_shader(std::move(other.m_fragment_shader))
-        , m_allocator(std::move(other.m_allocator))
-        , m_staging_buffer(std::move(other.m_staging_buffer))
-    { }
-
-    VulkanBackend &VulkanBackend::operator=(VulkanBackend &&other) noexcept
-    {
-        swap(m_logger, other.m_logger);
-        swap(m_instance_manager, other.m_instance_manager);
-        swap(m_device_manager, other.m_device_manager);
-        swap(m_window, other.m_window);
-        swap(m_device, other.m_device);
-        swap(m_graphics_queue, other.m_graphics_queue);
-        swap(m_present_queue, other.m_present_queue);
-
-        swap(m_surface, other.m_surface);
-        swap(m_swapchain, other.m_swapchain);
-        swap(m_images, other.m_images);
-        swap(m_image_views, other.m_image_views);
-        swap(m_render_pass, other.m_render_pass);
-        swap(m_pipeline_layout, other.m_pipeline_layout);
-        swap(m_gouraud_pipeline, other.m_gouraud_pipeline);
-        swap(m_command_pool, other.m_command_pool);
-        swap(m_frame_sets, other.m_frame_sets);
-        swap(m_descriptor_pool, other.m_descriptor_pool);
-
-        swap(m_allocator, other.m_allocator);
-        swap(m_staging_buffer, other.m_staging_buffer);
-
-        swap(m_swapchain_config, other.m_swapchain_config);
-        swap(m_vertex_shader, other.m_vertex_shader);
-        swap(m_fragment_shader, other.m_fragment_shader);
-
-        return *this;
-    }
-
-    void VulkanBackend::handle_framebuffer_resize(GLFWwindow *window, int width, int height)
-    {
-        Window *w = (Window *)glfwGetWindowUserPointer(window);
-
-        w->m_render_manager->m_framebuffer_resized = true;
     }
 
     void VulkanBackend::create_render_pass()
@@ -735,67 +640,30 @@ namespace engine
 
         auto config = PreparedPipelineConfiguration(pipeline_config);
 
-        {
-            vk::GraphicsPipelineCreateInfo gouraud_pipeline_info = {
-                .stageCount          = (uint32_t)config.shader_stages.size(),
-                .pStages             = config.shader_stages.data(),
-                .pVertexInputState   = &config.vertex_input,
-                .pInputAssemblyState = &config.input_assembly,
-                .pViewportState      = &config.viewport_state,
-                .pRasterizationState = &config.rasterizer,
-                .pMultisampleState   = &config.multisampling,
-                .pDepthStencilState  = nullptr,
-                .pColorBlendState    = &config.color_blending,
-                .pDynamicState       = &config.dynamic_state,
-                .layout              = m_pipeline_layout,
-                .renderPass          = m_render_pass,
-                .subpass             = 0,
-                .basePipelineHandle  = nullptr,
-                .basePipelineIndex   = -1,
-            };
+        vk::GraphicsPipelineCreateInfo gouraud_pipeline_info = {
+            .stageCount          = (uint32_t)config.shader_stages.size(),
+            .pStages             = config.shader_stages.data(),
+            .pVertexInputState   = &config.vertex_input,
+            .pInputAssemblyState = &config.input_assembly,
+            .pViewportState      = &config.viewport_state,
+            .pRasterizationState = &config.rasterizer,
+            .pMultisampleState   = &config.multisampling,
+            .pDepthStencilState  = nullptr,
+            .pColorBlendState    = &config.color_blending,
+            .pDynamicState       = &config.dynamic_state,
+            .layout              = m_pipeline_layout,
+            .renderPass          = m_render_pass,
+            .subpass             = 0,
+            .basePipelineHandle  = nullptr,
+            .basePipelineIndex   = -1,
+        };
 
-            auto [result, pipeline] = m_device.createGraphicsPipeline(nullptr, gouraud_pipeline_info);
-            if (result != vk::Result::eSuccess)
-                throw VulkanException((uint32_t)result, "Failed to create graphics pipeline");
-            m_logger->info("Created graphics pipeline");
+        auto [result, pipeline] = m_device.createGraphicsPipeline(nullptr, gouraud_pipeline_info);
+        if (result != vk::Result::eSuccess)
+            throw VulkanException((uint32_t)result, "Failed to create graphics pipeline");
+        m_logger->info("Created graphics pipeline");
 
-            m_gouraud_pipeline = pipeline;
-        }
-
-        using primitives::TEXTURED_VERTEX;
-        pipeline_config.vertex_binding_descriptions =
-            vector(TEXTURED_VERTEX.bindings.begin(), TEXTURED_VERTEX.bindings.end());
-        pipeline_config.vertex_attribute_descriptions =
-            vector(TEXTURED_VERTEX.attributes.begin(), TEXTURED_VERTEX.attributes.end());
-
-        config = pipeline_config;
-
-        {
-            vk::GraphicsPipelineCreateInfo textured_pipeline_info = {
-                .stageCount          = (uint32_t)config.shader_stages.size(),
-                .pStages             = config.shader_stages.data(),
-                .pVertexInputState   = &config.vertex_input,
-                .pInputAssemblyState = &config.input_assembly,
-                .pViewportState      = &config.viewport_state,
-                .pRasterizationState = &config.rasterizer,
-                .pMultisampleState   = &config.multisampling,
-                .pDepthStencilState  = nullptr,
-                .pColorBlendState    = &config.color_blending,
-                .pDynamicState       = &config.dynamic_state,
-                .layout              = m_pipeline_layout,
-                .renderPass          = m_render_pass,
-                .subpass             = 0,
-                .basePipelineHandle  = nullptr,
-                .basePipelineIndex   = -1,
-            };
-
-            auto [result, pipeline] = m_device.createGraphicsPipeline(nullptr, textured_pipeline_info);
-            if (result != vk::Result::eSuccess)
-                throw VulkanException((uint32_t)result, "Failed to create graphics pipeline");
-            m_logger->info("Created graphics pipeline");
-
-            m_textured_pipeline = pipeline;
-        }
+        m_gouraud_pipeline = pipeline;
     }
 
     void VulkanBackend::create_framebuffers()

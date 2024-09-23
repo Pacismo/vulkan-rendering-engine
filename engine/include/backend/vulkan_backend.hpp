@@ -68,7 +68,7 @@ namespace engine
 
         using SharedInstanceManager = std::shared_ptr<class VulkanInstanceManager>;
         using SharedDeviceManager   = std::shared_ptr<class RenderDeviceManager>;
-        using Shared                = std::shared_ptr<VulkanBackend>;
+        using Unique                = std::unique_ptr<VulkanBackend>;
 
         struct StagingBuffer
         {
@@ -108,16 +108,14 @@ namespace engine
         std::optional<DrawingContext> begin_draw();
         void                          end_draw(DrawingContext &context);
 
-        VulkanBackend(std::string_view application_name, Version application_version, GLFWwindow *window);
-        VulkanBackend(const VulkanBackend &other, GLFWwindow *window);
         ~VulkanBackend();
 
         /// Make a new shared pointer to a RenderManager
-        static Shared new_shared(std::string_view application_name, Version application_version, GLFWwindow *window);
+        static Unique new_unique(std::string_view application_name, Version application_version, GLFWwindow *window);
         /// Clone the instance/device managers to create a new RenderManager
         ///
         /// The device from `other` must be compatible with the surface created with the window
-        static Shared new_shared(const Shared &other, GLFWwindow *window);
+        static Unique new_from(const VulkanBackend &other, GLFWwindow *window);
 
         /// Wait until the device is idle
         void wait_idle();
@@ -129,8 +127,9 @@ namespace engine
         VulkanBackend(const VulkanBackend &)            = delete;
         VulkanBackend &operator=(const VulkanBackend &) = delete;
 
-        VulkanBackend(VulkanBackend &&) noexcept;
-        VulkanBackend &operator=(VulkanBackend &&) noexcept;
+        // No moving
+        VulkanBackend(VulkanBackend &&) noexcept            = delete;
+        VulkanBackend &operator=(VulkanBackend &&) noexcept = delete;
 
         std::shared_ptr<spdlog::logger> m_logger           = {};
         SharedInstanceManager           m_instance_manager = {};
@@ -149,7 +148,6 @@ namespace engine
         vk::RenderPass                   m_render_pass               = {};
         vk::PipelineLayout               m_pipeline_layout           = {};
         vk::Pipeline                     m_gouraud_pipeline          = {};
-        vk::Pipeline                     m_textured_pipeline         = {};
         std::vector<vk::Framebuffer>     m_framebuffers              = {};
         CommandPoolManager               m_command_pool              = {};
         DescriptorPoolManager            m_descriptor_pool           = {};
@@ -168,7 +166,8 @@ namespace engine
         bool                   m_valid_framebuffer   = {};
 
       private:
-        static void handle_framebuffer_resize(GLFWwindow *window, int width, int height);
+        VulkanBackend(std::string_view application_name, Version application_version, GLFWwindow *window);
+        VulkanBackend(const VulkanBackend &other, GLFWwindow *window);
 
         // Pipeline initialization functions
 
