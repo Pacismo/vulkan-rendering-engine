@@ -10,13 +10,20 @@
 #include <vulkan/vulkan.hpp>
 
 #if DEBUG_ASSERTIONS
-#    ifdef _CrtDbgBreak
-#        define BREAKPOINT() _CrtDbgBreak()
+#    if defined(_CrtDbgBreak)
+/// CRT debug break
+#        define DEBUG_BREAK _CrtDbgBreak()
+#    elif not defined(WIN32)
+#        include <signal.h>
+/// Non-Windows debug break (raise SIGTRAP)
+#        define DEBUG_BREAK raise(SIGTRAP)
 #    else
-#        define BREAKPOINT()
+/// Non-CRT Windows is not supported
+#        define DEBUG_BREAK
 #    endif
 #else
-#    define BREAKPOINT()
+/// No operation
+#    define DEBUG_BREAK
 #endif
 
 using std::vector, std::span, std::string_view;
@@ -123,12 +130,12 @@ namespace engine
         case vk::DebugUtilsMessageSeverityFlagBitsEXT::eWarning:
             p_vim->logger->warn("Vulkan Debug Utils (Warning/{}): {}\n{}", message_type, p_data->pMessageIdName,
                                 p_data->pMessage);
-            BREAKPOINT();
+            DEBUG_BREAK;
             break;
         case vk::DebugUtilsMessageSeverityFlagBitsEXT::eError:
             p_vim->logger->error("Vulkan Debug Utils (Error/{}): {}\n{}", message_type, p_data->pMessageIdName,
                                  p_data->pMessage);
-            BREAKPOINT();
+            DEBUG_BREAK;
             break;
         }
         return VK_FALSE;
@@ -173,7 +180,10 @@ namespace engine
                 }
             }
 
-#define IS_FEATURE_SUPPORTED(feature) (features.feature != 0) ? (available_features.feature != 0) : true
+            // request -> available => !request || available
+            // 
+            // In other words, request == 0 or available == 1
+#define IS_FEATURE_SUPPORTED(feature) ((features.feature == 0) || (available_features.feature == 1))
             bool features_supported = IS_FEATURE_SUPPORTED(robustBufferAccess)                      //
                                    && IS_FEATURE_SUPPORTED(fullDrawIndexUint32)                     //
                                    && IS_FEATURE_SUPPORTED(imageCubeArray)                          //
