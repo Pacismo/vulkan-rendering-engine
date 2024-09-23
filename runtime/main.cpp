@@ -22,24 +22,51 @@ using engine::primitives::GouraudVertex, engine::Object, engine::CameraTransform
     engine::KeyAction, engine::ModifierKey, engine::contains, engine::DEFAULT_FOV;
 using std::shared_ptr, std::initializer_list, engine::Window, std::string_view, std::array, std::list, std::shared_ptr;
 
-const array<GouraudVertex, 8> VERTICES = {
-    GouraudVertex {.position = {-0.5, -0.5, 0.0}, .color = {1.0, 0.0, 0.0}},
-    GouraudVertex { .position = {0.5, -0.5, 0.0}, .color = {0.0, 1.0, 0.0}},
-    GouraudVertex {  .position = {0.5, 0.5, 0.0}, .color = {0.0, 0.0, 1.0}},
-    GouraudVertex { .position = {-0.5, 0.5, 0.0}, .color = {1.0, 1.0, 1.0}},
-    GouraudVertex {.position = {-0.5, -0.5, 1.0}, .color = {0.5, 0.0, 0.0}},
+const array<GouraudVertex, 24> VERTICES = {
+    // -Z
+    GouraudVertex {.position = {-0.5, -0.5, 0.0}, .color = {0.0, 0.0, 0.5}},
+    GouraudVertex { .position = {0.5, -0.5, 0.0}, .color = {0.0, 0.0, 0.5}},
+    GouraudVertex {  .position = {0.5, 0.5, 0.0}, .color = {0.0, 0.0, 0.5}},
+    GouraudVertex { .position = {-0.5, 0.5, 0.0}, .color = {0.0, 0.0, 0.5}},
+
+    // +Z
+    GouraudVertex {.position = {-0.5, -0.5, 1.0}, .color = {0.0, 0.0, 1.0}},
+    GouraudVertex { .position = {0.5, -0.5, 1.0}, .color = {0.0, 0.0, 1.0}},
+    GouraudVertex {  .position = {0.5, 0.5, 1.0}, .color = {0.0, 0.0, 1.0}},
+    GouraudVertex { .position = {-0.5, 0.5, 1.0}, .color = {0.0, 0.0, 1.0}},
+
+    // -Y
+    GouraudVertex {.position = {-0.5, -0.5, 0.0}, .color = {0.0, 0.5, 0.0}},
+    GouraudVertex { .position = {0.5, -0.5, 0.0}, .color = {0.0, 0.5, 0.0}},
+    GouraudVertex {.position = {-0.5, -0.5, 1.0}, .color = {0.0, 0.5, 0.0}},
     GouraudVertex { .position = {0.5, -0.5, 1.0}, .color = {0.0, 0.5, 0.0}},
-    GouraudVertex {  .position = {0.5, 0.5, 1.0}, .color = {0.0, 0.0, 0.5}},
-    GouraudVertex { .position = {-0.5, 0.5, 1.0}, .color = {0.5, 0.5, 0.5}},
+
+    // +Y
+    GouraudVertex {  .position = {0.5, 0.5, 0.0}, .color = {0.0, 1.0, 0.0}},
+    GouraudVertex { .position = {-0.5, 0.5, 0.0}, .color = {0.0, 1.0, 0.0}},
+    GouraudVertex {  .position = {0.5, 0.5, 1.0}, .color = {0.0, 1.0, 0.0}},
+    GouraudVertex { .position = {-0.5, 0.5, 1.0}, .color = {0.0, 1.0, 0.0}},
+
+    // -X
+    GouraudVertex { .position = {-0.5, 0.5, 0.0}, .color = {0.5, 0.0, 0.0}},
+    GouraudVertex {.position = {-0.5, -0.5, 1.0}, .color = {0.5, 0.0, 0.0}},
+    GouraudVertex { .position = {-0.5, 0.5, 1.0}, .color = {0.5, 0.0, 0.0}},
+    GouraudVertex {.position = {-0.5, -0.5, 0.0}, .color = {0.5, 0.0, 0.0}},
+
+    // +X
+    GouraudVertex { .position = {0.5, -0.5, 0.0}, .color = {1.0, 0.0, 0.0}},
+    GouraudVertex {  .position = {0.5, 0.5, 0.0}, .color = {1.0, 0.0, 0.0}},
+    GouraudVertex { .position = {0.5, -0.5, 1.0}, .color = {1.0, 0.0, 0.0}},
+    GouraudVertex {  .position = {0.5, 0.5, 1.0}, .color = {1.0, 0.0, 0.0}},
 };
 
 const array<uint32_t, 36> INDICES = {
-    0, 1, 2, 2, 3, 0, //
-    6, 5, 4, 4, 7, 6, //
-    5, 1, 0, 4, 5, 0, //
-    6, 2, 1, 5, 6, 1, //
-    7, 3, 2, 6, 7, 2, //
-    4, 0, 3, 7, 4, 3, //
+    0,  1,  2,  2,  3,  0,  //  0  1  2  3
+    6,  5,  4,  4,  7,  6,  //  4  5  6  7
+    11, 9,  8,  10, 11, 8,  //  8  9 10 11
+    15, 13, 12, 14, 15, 12, // 12 13 14 15
+    17, 19, 16, 18, 17, 16, // 16 17 18 19
+    23, 21, 20, 22, 23, 20, // 20 21 22 23
 };
 
 class Cube : public Object
