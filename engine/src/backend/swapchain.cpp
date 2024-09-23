@@ -117,7 +117,8 @@ namespace engine
         if (render_pass)
             m_device.destroyRenderPass(render_pass);
 
-        m_device.destroySwapchainKHR(swapchain);
+        if (swapchain)
+            m_device.destroySwapchainKHR(swapchain);
 
         swapchain        = nullptr;
         render_pass      = nullptr;
@@ -151,8 +152,12 @@ namespace engine
             .clipped               = true,
             .oldSwapchain          = swapchain, // Should be NULL for the first call
         };
+        vk::SwapchainKHR old_swapchain = swapchain;
 
         swapchain = m_device.createSwapchainKHR(swapchain_create_info);
+
+        if (old_swapchain)
+            m_device.destroySwapchainKHR(old_swapchain);
     }
 
     void SwapchainManager::get_swapchain_images()
