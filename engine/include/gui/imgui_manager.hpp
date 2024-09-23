@@ -10,10 +10,10 @@ namespace engine
     {
       public:
         ImGuiManager();
-        ImGuiManager(std::shared_ptr<VulkanBackend> backend, GLFWwindow *p_window);
+        ImGuiManager(VulkanBackend &backend, GLFWwindow *p_window);
         ~ImGuiManager();
 
-        void init(std::shared_ptr<VulkanBackend> backend, GLFWwindow *p_window);
+        void init(VulkanBackend &backend, GLFWwindow *p_window);
         void destroy();
 
         void make_current();

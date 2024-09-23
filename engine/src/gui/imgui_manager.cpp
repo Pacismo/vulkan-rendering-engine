@@ -20,7 +20,7 @@ namespace engine
         , mp_context(nullptr)
     { }
 
-    ImGuiManager::ImGuiManager(std::shared_ptr<VulkanBackend> vk_backend, GLFWwindow *p_window)
+    ImGuiManager::ImGuiManager(VulkanBackend &vk_backend, GLFWwindow *p_window)
     {
         init(vk_backend, p_window);
     }
@@ -30,11 +30,11 @@ namespace engine
         destroy();
     }
 
-    void ImGuiManager::init(std::shared_ptr<VulkanBackend> backend, GLFWwindow *p_window)
+    void ImGuiManager::init(VulkanBackend &backend, GLFWwindow *p_window)
     {
-        m_device_manager = backend->m_device_manager;
+        m_device_manager = backend.m_device_manager;
         // Descriptor pool as used by imgui needs the `FreeDescriptorSet` flag bit set.
-        m_descriptor_pool.init(backend->m_device_manager, 64, vk::DescriptorPoolCreateFlagBits::eFreeDescriptorSet);
+        m_descriptor_pool.init(backend.m_device_manager, 64, vk::DescriptorPoolCreateFlagBits::eFreeDescriptorSet);
 
         IMGUI_CHECKVERSION();
         mp_context  = ImGui::CreateContext();
@@ -52,7 +52,7 @@ namespace engine
             .QueueFamily     = m_device_manager->graphics_queue.index,
             .Queue           = m_device_manager->graphics_queue.handle,
             .DescriptorPool  = m_descriptor_pool.get_pool(),
-            .RenderPass      = backend->m_render_pass,
+            .RenderPass      = backend.m_render_pass,
             .MinImageCount   = MAX_IN_FLIGHT,
             .ImageCount      = MAX_IN_FLIGHT + 1,
             .MSAASamples     = VK_SAMPLE_COUNT_1_BIT,
