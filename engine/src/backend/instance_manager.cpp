@@ -130,7 +130,7 @@ namespace engine
         case vk::DebugUtilsMessageSeverityFlagBitsEXT::eWarning:
             p_vim->logger->warn("Vulkan Debug Utils (Warning/{}): {}\n{}", message_type, p_data->pMessageIdName,
                                 p_data->pMessage);
-            DEBUG_BREAK;
+            //DEBUG_BREAK;
             break;
         case vk::DebugUtilsMessageSeverityFlagBitsEXT::eError:
             p_vim->logger->error("Vulkan Debug Utils (Error/{}): {}\n{}", message_type, p_data->pMessageIdName,
