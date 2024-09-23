@@ -5,10 +5,7 @@ set(ENGINE_SOURCES
     "include/version.hpp"
     "include/object.hpp"
     "include/constants.hpp"
-    "include/resources/image.hpp"
     "include/vertex.hpp"
-    "include/backend/vertex_description.hpp"
-    "include/drawables/drawing_context.hpp"
     "include/input/keyboard.hpp"
     "include/input/mouse.hpp"
     "include/input/controller.hpp"
@@ -18,6 +15,10 @@ set(ENGINE_SOURCES
     "src/window.cpp"                     "include/window.hpp"
     "src/exceptions.cpp"                 "include/exceptions.hpp"
 
+    "include/resources/image.hpp"
+
+    "include/backend/vertex_description.hpp"
+    "include/backend/pipeline_configuration.hpp"
     "src/backend/instance_manager.cpp"   "include/backend/instance_manager.hpp"
     "src/backend/vk_result.cpp"          "include/backend/vk_result.hpp"
     "src/backend/device_manager.cpp"     "include/backend/device_manager.hpp"
@@ -25,11 +26,13 @@ set(ENGINE_SOURCES
     "src/backend/descriptor_pool.cpp"    "include/backend/descriptor_pool.hpp"
     "src/backend/command_pool.cpp"       "include/backend/command_pool.hpp"
     "src/backend/allocator.cpp"          "include/backend/allocator.hpp"
+    "src/backend/swapchain.cpp"          "include/backend/swapchain.hpp"
 
     "src/gui/imgui_manager.cpp"          "include/gui/imgui_manager.hpp"
 
+    "include/drawables/drawing_context.hpp"
     "src/drawables/GouraudMesh.cpp"      "include/drawables/GouraudMesh.hpp"
-    "src/backend/swapchain.cpp"          "include/backend/swapchain.hpp")
+)
 
 add_library(engine ${ENGINE_SOURCES})
 
