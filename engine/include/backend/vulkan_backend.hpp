@@ -136,7 +136,7 @@ namespace engine
         glm::mat4                                                        m_camera     = {1.0};
         TypedHostVisibleAllocation<ViewProjectionUniform[MAX_IN_FLIGHT]> m_vp_uniform = {};
 
-        bool                   m_framebuffer_resized = false;
+        bool m_framebuffer_resized = false;
 
       private:
         VulkanBackend(std::string_view application_name, Version application_version, GLFWwindow *window);
