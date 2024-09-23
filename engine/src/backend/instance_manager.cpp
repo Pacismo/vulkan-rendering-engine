@@ -9,6 +9,16 @@
 #include <vector>
 #include <vulkan/vulkan.hpp>
 
+#if DEBUG_ASSERTIONS
+#    ifdef _CrtDbgBreak
+#        define BREAKPOINT() _CrtDbgBreak()
+#    else
+#        define BREAKPOINT()
+#    endif
+#else
+#    define BREAKPOINT()
+#endif
+
 using std::vector, std::span, std::string_view;
 
 namespace engine
@@ -113,10 +123,12 @@ namespace engine
         case vk::DebugUtilsMessageSeverityFlagBitsEXT::eWarning:
             p_vim->logger->warn("Vulkan Debug Utils (Warning/{}): {}\n{}", message_type, p_data->pMessageIdName,
                                 p_data->pMessage);
+            BREAKPOINT();
             break;
         case vk::DebugUtilsMessageSeverityFlagBitsEXT::eError:
             p_vim->logger->error("Vulkan Debug Utils (Error/{}): {}\n{}", message_type, p_data->pMessageIdName,
                                  p_data->pMessage);
+            BREAKPOINT();
             break;
         }
         return VK_FALSE;
