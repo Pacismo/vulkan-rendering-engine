@@ -9,7 +9,6 @@ set(ENGINE_SOURCES
     "include/input/keyboard.hpp"
     "include/input/mouse.hpp"
     "include/input/controller.hpp"
-    "src/backend/vma_impl.cpp"
 
     "src/logger.cpp"                     "include/logger.hpp"
     "src/window.cpp"                     "include/window.hpp"
@@ -17,8 +16,11 @@ set(ENGINE_SOURCES
 
     "include/resources/image.hpp"
 
+    "src/backend/vma_impl.cpp"
     "include/backend/vertex_description.hpp"
     "include/backend/pipeline_configuration.hpp"
+    "include/backend/allocation.hpp"
+    "src/backend/image_allocation.cpp"   "include/backend/image_allocation.hpp"
     "src/backend/instance_manager.cpp"   "include/backend/instance_manager.hpp"
     "src/backend/vk_result.cpp"          "include/backend/vk_result.hpp"
     "src/backend/device_manager.cpp"     "include/backend/device_manager.hpp"
