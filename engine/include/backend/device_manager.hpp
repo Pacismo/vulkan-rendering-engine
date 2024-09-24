@@ -12,6 +12,24 @@ namespace engine
         vk::Queue handle;
     };
 
+    class SingleTimeCommandBuffer
+    {
+        class RenderDeviceManager *p_manager;
+        vk::Queue                  queue;
+        vk::CommandBuffer          buffer;
+
+      public:
+        inline vk::CommandBuffer *operator->() { return &buffer; }
+
+        inline operator vk::CommandBuffer() { return buffer; }
+
+        void submit();
+
+        SingleTimeCommandBuffer(class RenderDeviceManager *manager, vk::Queue queue, vk::CommandBuffer buffer);
+
+        ~SingleTimeCommandBuffer();
+    };
+
     /// Manages the data pertaining to the rendering device.
     ///
     /// May be shared.
@@ -28,6 +46,9 @@ namespace engine
 
         static Shared new_shared(SharedInstanceManager instance_manager, vk::PhysicalDevice physical_device);
 
+        vk::Format find_supported_format(std::span<const vk::Format> formats, vk::ImageTiling tiling,
+                                         vk::FormatFeatureFlags features) const;
+
         std::shared_ptr<spdlog::logger>              logger           = {};
         std::shared_ptr<class VulkanInstanceManager> instance_manager = {};
         std::weak_ptr<class VulkanAllocator>         allocator        = {}; // Weak to prevent cyclic reference
@@ -36,6 +57,9 @@ namespace engine
         vk::Device                                   device           = {};
         Queue                                        graphics_queue   = {};
         Queue                                        present_queue    = {};
+        vk::CommandPool                              command_pool     = {};
+
+        SingleTimeCommandBuffer single_time_command();
 
       private:
         RenderDeviceManager(SharedInstanceManager instance_manager, vk::PhysicalDevice physical_device);
