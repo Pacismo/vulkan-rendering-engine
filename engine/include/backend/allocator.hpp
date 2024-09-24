@@ -17,6 +17,8 @@ namespace engine
         operator VmaAllocator();
         operator const VmaAllocator() const;
 
+        RenderDeviceManager::Shared get_device_manager();
+
         ~VulkanAllocator();
 
       private:
