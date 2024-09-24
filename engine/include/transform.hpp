@@ -3,6 +3,16 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 
+inline constexpr double operator"" _deg(long double value)
+{
+    return glm::radians(value);
+}
+
+inline constexpr double operator"" _rad(long double value)
+{
+    return value;
+}
+
 namespace engine
 {
     struct Transform
