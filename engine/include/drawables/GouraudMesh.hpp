@@ -9,13 +9,13 @@ namespace engine
     class GouraudMesh : public Object
     {
       public:
-        Allocation                                           allocation;
-        TypedHostVisibleAllocation<glm::mat4[MAX_IN_FLIGHT]> model_matrix;
+        BufferAllocation                                           allocation;
+        TypedHostVisibleBufferAllocation<glm::mat4[MAX_IN_FLIGHT]> model_matrix;
         vk::DeviceSize                                       vtx_offset;
         vk::DeviceSize                                       idx_offset;
         uint32_t                                             count;
 
-        GouraudMesh(Allocation allocation, vk::DeviceSize vtx_off, vk::DeviceSize idx_off, uint32_t count);
+        GouraudMesh(BufferAllocation allocation, vk::DeviceSize vtx_off, vk::DeviceSize idx_off, uint32_t count);
 
         void draw(struct DrawingContext &context, const glm::mat4 &parent_transform = {1.0}) override;
         ~GouraudMesh();
