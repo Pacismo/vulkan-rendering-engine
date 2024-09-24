@@ -4,6 +4,7 @@
   "dependencies": [
     "vulkan",
     "vulkan-memory-allocator",
+    "tinyobjloader",
     "glfw3",
     "glm",
     {

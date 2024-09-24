@@ -11,15 +11,16 @@ add_compile_definitions(DEBUG_ASSERTIONS=${DEBUG}
 						TERMINAL_ENABLED=${TERMINAL}
 						RADIANS=true)
 
-find_package(Vulkan REQUIRED)
+find_package(Vulkan	                      REQUIRED)
 find_package(VulkanMemoryAllocator CONFIG REQUIRED)
-find_package(glfw3 CONFIG REQUIRED)
-find_package(glm CONFIG REQUIRED)
-find_package(imgui CONFIG REQUIRED)
-find_package(fmt CONFIG REQUIRED)
-find_package(spdlog CONFIG REQUIRED)
-find_package(unofficial-sqlite3 CONFIG REQUIRED)
-find_package(SQLiteCpp CONFIG REQUIRED)
+find_package(tinyobjloader         CONFIG REQUIRED)
+find_package(glfw3                 CONFIG REQUIRED)
+find_package(glm                   CONFIG REQUIRED)
+find_package(imgui                 CONFIG REQUIRED)
+find_package(fmt                   CONFIG REQUIRED)
+find_package(spdlog                CONFIG REQUIRED)
+find_package(unofficial-sqlite3    CONFIG REQUIRED)
+find_package(SQLiteCpp             CONFIG REQUIRED)
 
 set(TOOLS_DIR "${CMAKE_BINARY_DIR}/../tools")
 
