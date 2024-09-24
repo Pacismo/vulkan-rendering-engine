@@ -1,4 +1,5 @@
 #pragma once
+#include "backend/image_allocation.hpp"
 #include <GLFW/glfw3.h>
 #include <vulkan/vulkan.hpp>
 
@@ -28,9 +29,20 @@ namespace engine
 
     struct Image
     {
-        vk::Image       handle      = nullptr;
-        vk::ImageView   view        = nullptr;
-        vk::Framebuffer framebuffer = nullptr;
+        vk::Image     handle = nullptr;
+        vk::ImageView view   = nullptr;
+
+        inline operator vk::Image() { return handle; }
+        inline operator vk::ImageView() { return view; }
+    };
+
+    struct Framebuffer
+    {
+        Image           color  = {};
+        ImageAllocation depth  = {};
+        vk::Framebuffer handle = nullptr;
+
+        inline operator vk::Framebuffer() { return handle; }
     };
 
     class SwapchainManager final
@@ -51,7 +63,7 @@ namespace engine
         operator bool() const noexcept;
         operator vk::SwapchainKHR() const noexcept;
 
-        Image &operator[](size_t i);
+        Framebuffer &operator[](size_t i);
 
       private:
         void create_swapchain();
@@ -63,9 +75,10 @@ namespace engine
         vk::SurfaceKHR      m_surface        = nullptr;
 
       public:
-        vk::RenderPass         render_pass   = nullptr;
-        vk::SwapchainKHR       swapchain     = nullptr;
-        std::vector<Image>     images        = {};
-        SwapchainConfiguration configuration = {};
+        vk::RenderPass           render_pass   = nullptr;
+        vk::SwapchainKHR         swapchain     = nullptr;
+        std::vector<Framebuffer> images        = {};
+        SwapchainConfiguration   configuration = {};
+        vk::Format               depth_format  = {};
     };
 } // namespace engine

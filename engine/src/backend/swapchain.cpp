@@ -3,6 +3,14 @@
 #include "exceptions.hpp"
 #include <array>
 
+static const std::array<vk::Format, 3> SUPPORTED_DEPTH_FORMATS = {vk::Format::eD32Sfloat, vk::Format::eD32SfloatS8Uint,
+                                                                  vk::Format::eD24UnormS8Uint};
+
+static bool has_stencil_component(vk::Format format)
+{
+    return (format == vk::Format::eD32SfloatS8Uint) || (format == vk::Format::eD24UnormS8Uint);
+}
+
 namespace engine
 {
     SwapchainSupportDetails SwapchainSupportDetails::query(vk::PhysicalDevice device, vk::SurfaceKHR surface)
@@ -65,6 +73,9 @@ namespace engine
 
         create_swapchain();
 
+        depth_format = m_device_manager->find_supported_format(SUPPORTED_DEPTH_FORMATS, vk::ImageTiling::eOptimal,
+                                                               vk::FormatFeatureFlagBits::eDepthStencilAttachment);
+
         vk::AttachmentDescription color_attachment = {
             .format         = configuration.format,
             .samples        = vk::SampleCountFlagBits::e1,
@@ -81,24 +92,49 @@ namespace engine
             .layout     = vk::ImageLayout::eColorAttachmentOptimal,
         };
 
-        vk::SubpassDescription subpass_description = {
-            .pipelineBindPoint    = vk::PipelineBindPoint::eGraphics,
-            .colorAttachmentCount = 1,
-            .pColorAttachments    = &color_attachment_reference,
+        vk::AttachmentDescription depth_attachment = {
+            .format         = depth_format,
+            .samples        = vk::SampleCountFlagBits::e1,
+            .loadOp         = vk::AttachmentLoadOp::eClear,
+            .storeOp        = vk::AttachmentStoreOp::eDontCare,
+            .stencilLoadOp  = vk::AttachmentLoadOp::eDontCare,
+            .stencilStoreOp = vk::AttachmentStoreOp::eDontCare,
+            .initialLayout  = vk::ImageLayout::eUndefined,
+            .finalLayout    = vk::ImageLayout::eDepthStencilAttachmentOptimal,
         };
+
+        vk::AttachmentReference depth_attachment_reference = {
+            .attachment = 1,
+            .layout     = vk::ImageLayout::eDepthStencilAttachmentOptimal,
+        };
+
+        std::array<vk::AttachmentDescription, 2> attachment_descriptions = {
+            color_attachment,
+            depth_attachment,
+        };
+
+        vk::SubpassDescription subpass_description = {
+            .pipelineBindPoint       = vk::PipelineBindPoint::eGraphics,
+            .colorAttachmentCount    = 1,
+            .pColorAttachments       = &color_attachment_reference,
+            .pDepthStencilAttachment = &depth_attachment_reference,
+        };
+
+        using vk::AccessFlagBits::eColorAttachmentWrite, vk::AccessFlagBits::eDepthStencilAttachmentWrite;
+        using vk::PipelineStageFlagBits::eColorAttachmentOutput, vk::PipelineStageFlagBits::eEarlyFragmentTests;
 
         vk::SubpassDependency subpass = {
             .srcSubpass    = vk::SubpassExternal,
             .dstSubpass    = 0,
-            .srcStageMask  = vk::PipelineStageFlagBits::eColorAttachmentOutput,
-            .dstStageMask  = vk::PipelineStageFlagBits::eColorAttachmentOutput,
+            .srcStageMask  = eColorAttachmentOutput | eEarlyFragmentTests,
+            .dstStageMask  = eColorAttachmentOutput | eEarlyFragmentTests,
             .srcAccessMask = vk::AccessFlagBits::eNone,
-            .dstAccessMask = vk::AccessFlagBits::eColorAttachmentWrite,
+            .dstAccessMask = eColorAttachmentWrite | eDepthStencilAttachmentWrite,
         };
 
         vk::RenderPassCreateInfo render_pass_create_info = {
-            .attachmentCount = 1,
-            .pAttachments    = &color_attachment,
+            .attachmentCount = attachment_descriptions.size(),
+            .pAttachments    = attachment_descriptions.data(),
             .subpassCount    = 1,
             .pSubpasses      = &subpass_description,
             .dependencyCount = 1,
@@ -119,6 +155,8 @@ namespace engine
 
         if (swapchain)
             m_device.destroySwapchainKHR(swapchain);
+
+        images.clear();
 
         swapchain        = nullptr;
         render_pass      = nullptr;
@@ -165,6 +203,9 @@ namespace engine
         auto image_handles = m_device.getSwapchainImagesKHR(swapchain);
         images.resize(image_handles.size());
 
+        // TODO: create allocator and create depth attachments
+        auto allocator = VulkanAllocator::new_shared(m_device_manager);
+
         for (size_t i = 0; i < image_handles.size(); ++i) {
             vk::ImageViewCreateInfo create_info = {
                 .image            = image_handles[i],
@@ -181,11 +222,22 @@ namespace engine
                                      .layerCount     = configuration.image_layers},
             };
 
-            images[i].handle = image_handles[i];
-            images[i].view   = m_device.createImageView(create_info);
+            images[i].color.handle = image_handles[i];
+            images[i].color.view   = m_device.createImageView(create_info);
 
-            std::array<vk::ImageView, 1> attachments = {
-                images[i].view,
+            ImageAllocationInfo iainfo = {
+                .usage  = vk::ImageUsageFlagBits::eDepthStencilAttachment,
+                .width  = configuration.extent.width,
+                .height = configuration.extent.height,
+                .format = depth_format,
+            };
+            iainfo.view_subresource_range.aspectMask = vk::ImageAspectFlagBits::eDepth;
+
+            images[i].depth = ImageAllocation(allocator, iainfo);
+
+            std::array<vk::ImageView, 2> attachments = {
+                images[i].color,
+                images[i].depth,
             };
 
             vk::FramebufferCreateInfo framebuffer_create_info = {
@@ -197,15 +249,15 @@ namespace engine
                 .layers          = configuration.image_layers,
             };
 
-            images[i].framebuffer = m_device.createFramebuffer(framebuffer_create_info);
+            images[i].handle = m_device.createFramebuffer(framebuffer_create_info);
         }
     }
 
     void SwapchainManager::destroy_swapchain()
     {
         for (auto &image : images) {
-            m_device.destroyFramebuffer(image.framebuffer);
-            m_device.destroyImageView(image.view);
+            m_device.destroyFramebuffer(image.handle);
+            m_device.destroyImageView(image.color);
         }
 
         images.clear();
@@ -221,7 +273,7 @@ namespace engine
         return swapchain;
     }
 
-    Image &SwapchainManager::operator[](size_t i)
+    Framebuffer &SwapchainManager::operator[](size_t i)
     {
         return images[i];
     }
