@@ -134,7 +134,7 @@ namespace engine
 
         float                                                            m_fov        = DEFAULT_FOV;
         glm::mat4                                                        m_camera     = {1.0};
-        TypedHostVisibleAllocation<ViewProjectionUniform[MAX_IN_FLIGHT]> m_vp_uniform = {};
+        TypedHostVisibleBufferAllocation<ViewProjectionUniform[MAX_IN_FLIGHT]> m_vp_uniform = {};
 
         bool m_framebuffer_resized = false;
 

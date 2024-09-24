@@ -462,7 +462,7 @@ namespace engine
 
     void VulkanBackend::finalize_init()
     {
-        m_vp_uniform = TypedHostVisibleAllocation<ViewProjectionUniform[MAX_IN_FLIGHT]>(
+        m_vp_uniform = TypedHostVisibleBufferAllocation<ViewProjectionUniform[MAX_IN_FLIGHT]>(
             m_allocator, vk::BufferUsageFlagBits::eUniformBuffer);
     }
 
@@ -575,14 +575,16 @@ namespace engine
 
         buffer.begin(buffer_begin);
 
-        vk::ClearValue clear_value = vk::ClearValue {vk::ClearColorValue {array {0.0f, 0.0f, 0.0f, 1.0f}}};
+        std::array<vk::ClearValue, 2> clear_values;
+        clear_values[0].color.setFloat32({0.0, 0.0, 0.0, 1.0});
+        clear_values[1].depthStencil = {1.0, 0};
 
         vk::RenderPassBeginInfo render_pass_begin = {
             .renderPass      = m_swapchain.render_pass,
-            .framebuffer     = m_swapchain[image_index].framebuffer,
+            .framebuffer     = m_swapchain[image_index],
             .renderArea      = {.offset = {0, 0}, .extent = m_swapchain.configuration.extent},
-            .clearValueCount = 1,
-            .pClearValues    = &clear_value,
+            .clearValueCount = clear_values.size(),
+            .pClearValues    = clear_values.data(),
         };
 
         vk::Viewport viewport = {
@@ -655,7 +657,7 @@ namespace engine
         size_t ibuf_bytes  = indices.size_bytes();    // Index buffer bytes
         size_t total_bytes = vbuf_bytes + ibuf_bytes; // Total bytes
 
-        Allocation allocation(m_allocator, total_bytes, BUFFER_USAGE);
+        BufferAllocation allocation(m_allocator, total_bytes, BUFFER_USAGE);
 
         // Transferring must be performed such that the writing buffer does not overflow.
 
