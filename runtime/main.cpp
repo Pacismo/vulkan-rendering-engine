@@ -24,40 +24,40 @@ using std::shared_ptr, std::initializer_list, engine::Window, std::string_view, 
 
 const array<GouraudVertex, 24> VERTICES = {
     // -Z
-    GouraudVertex {.position = {-0.5, -0.5, 0.0}, .color = {0.0, 0.0, 0.5}},
-    GouraudVertex { .position = {0.5, -0.5, 0.0}, .color = {0.0, 0.0, 0.5}},
-    GouraudVertex {  .position = {0.5, 0.5, 0.0}, .color = {0.0, 0.0, 0.5}},
-    GouraudVertex { .position = {-0.5, 0.5, 0.0}, .color = {0.0, 0.0, 0.5}},
+    GouraudVertex {.position = {-0.5, -0.5, -0.5}, .color = {0.0, 0.0, 0.5}},
+    GouraudVertex { .position = {0.5, -0.5, -0.5}, .color = {0.0, 0.0, 0.5}},
+    GouraudVertex {  .position = {0.5, 0.5, -0.5}, .color = {0.0, 0.0, 0.5}},
+    GouraudVertex { .position = {-0.5, 0.5, -0.5}, .color = {0.0, 0.0, 0.5}},
 
     // +Z
-    GouraudVertex {.position = {-0.5, -0.5, 1.0}, .color = {0.0, 0.0, 1.0}},
-    GouraudVertex { .position = {0.5, -0.5, 1.0}, .color = {0.0, 0.0, 1.0}},
-    GouraudVertex {  .position = {0.5, 0.5, 1.0}, .color = {0.0, 0.0, 1.0}},
-    GouraudVertex { .position = {-0.5, 0.5, 1.0}, .color = {0.0, 0.0, 1.0}},
+    GouraudVertex { .position = {-0.5, -0.5, 0.5}, .color = {0.0, 0.0, 1.0}},
+    GouraudVertex {  .position = {0.5, -0.5, 0.5}, .color = {0.0, 0.0, 1.0}},
+    GouraudVertex {   .position = {0.5, 0.5, 0.5}, .color = {0.0, 0.0, 1.0}},
+    GouraudVertex {  .position = {-0.5, 0.5, 0.5}, .color = {0.0, 0.0, 1.0}},
 
     // -Y
-    GouraudVertex {.position = {-0.5, -0.5, 0.0}, .color = {0.0, 0.5, 0.0}},
-    GouraudVertex { .position = {0.5, -0.5, 0.0}, .color = {0.0, 0.5, 0.0}},
-    GouraudVertex {.position = {-0.5, -0.5, 1.0}, .color = {0.0, 0.5, 0.0}},
-    GouraudVertex { .position = {0.5, -0.5, 1.0}, .color = {0.0, 0.5, 0.0}},
+    GouraudVertex {.position = {-0.5, -0.5, -0.5}, .color = {0.0, 0.5, 0.0}},
+    GouraudVertex { .position = {0.5, -0.5, -0.5}, .color = {0.0, 0.5, 0.0}},
+    GouraudVertex { .position = {-0.5, -0.5, 0.5}, .color = {0.0, 0.5, 0.0}},
+    GouraudVertex {  .position = {0.5, -0.5, 0.5}, .color = {0.0, 0.5, 0.0}},
 
     // +Y
-    GouraudVertex {  .position = {0.5, 0.5, 0.0}, .color = {0.0, 1.0, 0.0}},
-    GouraudVertex { .position = {-0.5, 0.5, 0.0}, .color = {0.0, 1.0, 0.0}},
-    GouraudVertex {  .position = {0.5, 0.5, 1.0}, .color = {0.0, 1.0, 0.0}},
-    GouraudVertex { .position = {-0.5, 0.5, 1.0}, .color = {0.0, 1.0, 0.0}},
+    GouraudVertex {  .position = {0.5, 0.5, -0.5}, .color = {0.0, 1.0, 0.0}},
+    GouraudVertex { .position = {-0.5, 0.5, -0.5}, .color = {0.0, 1.0, 0.0}},
+    GouraudVertex {   .position = {0.5, 0.5, 0.5}, .color = {0.0, 1.0, 0.0}},
+    GouraudVertex {  .position = {-0.5, 0.5, 0.5}, .color = {0.0, 1.0, 0.0}},
 
     // -X
-    GouraudVertex { .position = {-0.5, 0.5, 0.0}, .color = {0.5, 0.0, 0.0}},
-    GouraudVertex {.position = {-0.5, -0.5, 1.0}, .color = {0.5, 0.0, 0.0}},
-    GouraudVertex { .position = {-0.5, 0.5, 1.0}, .color = {0.5, 0.0, 0.0}},
-    GouraudVertex {.position = {-0.5, -0.5, 0.0}, .color = {0.5, 0.0, 0.0}},
+    GouraudVertex { .position = {-0.5, 0.5, -0.5}, .color = {0.5, 0.0, 0.0}},
+    GouraudVertex { .position = {-0.5, -0.5, 0.5}, .color = {0.5, 0.0, 0.0}},
+    GouraudVertex {  .position = {-0.5, 0.5, 0.5}, .color = {0.5, 0.0, 0.0}},
+    GouraudVertex {.position = {-0.5, -0.5, -0.5}, .color = {0.5, 0.0, 0.0}},
 
     // +X
-    GouraudVertex { .position = {0.5, -0.5, 0.0}, .color = {1.0, 0.0, 0.0}},
-    GouraudVertex {  .position = {0.5, 0.5, 0.0}, .color = {1.0, 0.0, 0.0}},
-    GouraudVertex { .position = {0.5, -0.5, 1.0}, .color = {1.0, 0.0, 0.0}},
-    GouraudVertex {  .position = {0.5, 0.5, 1.0}, .color = {1.0, 0.0, 0.0}},
+    GouraudVertex { .position = {0.5, -0.5, -0.5}, .color = {1.0, 0.0, 0.0}},
+    GouraudVertex {  .position = {0.5, 0.5, -0.5}, .color = {1.0, 0.0, 0.0}},
+    GouraudVertex {  .position = {0.5, -0.5, 0.5}, .color = {1.0, 0.0, 0.0}},
+    GouraudVertex {   .position = {0.5, 0.5, 0.5}, .color = {1.0, 0.0, 0.0}},
 };
 
 const array<uint32_t, 36> INDICES = {
@@ -77,15 +77,13 @@ class Cube : public Object
         auto vertices = VERTICES;
         auto indices  = INDICES;
 
-        mesh                     = backend.load(vertices, indices);
-        mesh->transform.location = {0.0, 0.0, -0.5};
+        mesh = backend.load(vertices, indices);
     }
 
     void physics_process(double delta) override
     {
         if (rotate)
-            transform.rotation.z =
-                glm::mod<float>(transform.rotation.z + glm::radians(180.0) * delta, glm::radians(360.0));
+            transform.rotation.z = glm::mod<float>(transform.rotation.z + 180.0_deg * delta, 360.0_deg);
     }
 
     void draw(engine::DrawingContext &context, const glm::mat4 &) override { mesh->draw(context, transform); }
@@ -112,10 +110,12 @@ class ExampleWindow : public Window
         auto &rb = get_render_backend();
 
         cube = shared_ptr<Cube>(new Cube(rb));
+        cube_2 = shared_ptr<Cube>(new Cube(rb));
         objects.push_back(cube);
+        objects.push_back(cube_2);
 
         camera.location = {2.0, 2.0, 2.0};
-        camera.rotation = {glm::radians(135.0), glm::radians(-35.0)};
+        camera.rotation = {135.0_deg, -35.0_deg};
 
         capture_mouse(camera_mouse);
 
@@ -145,7 +145,7 @@ class ExampleWindow : public Window
         case R:
             if (action == KeyAction::Press) {
                 camera.location = {2.0, 2.0, 2.0};
-                camera.rotation = {glm::radians(135.0), glm::radians(-35.0)};
+                camera.rotation = {135.0_deg, -35.0_deg};
                 get_render_backend().update_fov(fov = DEFAULT_FOV);
 
                 cube->transform.location = {0.0, 0.0, 0.0};
@@ -165,8 +165,8 @@ class ExampleWindow : public Window
         if (!camera_mouse)
             return;
 
-        camera.rotation.x = glm::mod(camera.rotation.x + dx * COEFFICIENT.x, glm::radians(360.0));
-        camera.rotation.y = glm::clamp(camera.rotation.y + dy * COEFFICIENT.y, glm::radians(-89.9), glm::radians(89.9));
+        camera.rotation.x = glm::mod(camera.rotation.x + dx * COEFFICIENT.x, 360.0_deg);
+        camera.rotation.y = glm::clamp(camera.rotation.y + dy * COEFFICIENT.y, -89.9_deg, 89.9_deg);
     }
 
     void on_scroll(double xoff, double yoff) override
@@ -194,7 +194,7 @@ class ExampleWindow : public Window
             ImGui::Checkbox("Enable Rotation", &cube->rotate);
 
             ImGui::DragFloat3("Location", &cube->transform.location.x, 1.0);
-            ImGui::DragFloat3("Rotation", &cube->transform.rotation.x, 0.1, 0.0, glm::radians(360.0), "%.3f",
+            ImGui::DragFloat3("Rotation", &cube->transform.rotation.x, 0.1, 0.0, 360.0_deg, "%.3f",
                               ImGuiSliderFlags_WrapAround);
             ImGui::DragFloat3("Scale", &cube->transform.scale.x, 1.0);
         }
@@ -306,6 +306,7 @@ class ExampleWindow : public Window
 
     CameraTransform          camera;
     shared_ptr<Cube>         cube    = nullptr;
+    shared_ptr<Cube>         cube_2  = nullptr;
     list<shared_ptr<Object>> objects = {};
 
     bool  camera_mouse = true;
