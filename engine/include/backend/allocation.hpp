@@ -6,7 +6,7 @@
 
 namespace engine
 {
-    struct Allocation
+    struct BufferAllocation
     {
       public:
         std::shared_ptr<VulkanAllocator> allocator;
@@ -17,14 +17,14 @@ namespace engine
         inline operator vk::Buffer() { return buffer; }
         inline operator const vk::Buffer() const { return buffer; }
 
-        inline Allocation()
+        inline BufferAllocation()
             : allocator(nullptr)
             , allocation(nullptr)
             , buffer(nullptr)
             , size(0)
         { }
 
-        inline Allocation(std::shared_ptr<VulkanAllocator> allocator, vk::DeviceSize size, vk::BufferUsageFlags usage)
+        inline BufferAllocation(std::shared_ptr<VulkanAllocator> allocator, vk::DeviceSize size, vk::BufferUsageFlags usage)
             : allocator(allocator)
             , allocation(nullptr)
             , buffer(nullptr)
@@ -44,7 +44,7 @@ namespace engine
                 throw VulkanException(result, "Failed to allocate buffer");
         }
 
-        inline Allocation(Allocation &&other) noexcept
+        inline BufferAllocation(BufferAllocation &&other) noexcept
         {
             allocator  = other.allocator;
             allocation = other.allocation;
@@ -56,7 +56,7 @@ namespace engine
             other.size       = 0;
         }
 
-        inline Allocation &operator=(Allocation &&other) noexcept
+        inline BufferAllocation &operator=(BufferAllocation &&other) noexcept
         {
             allocator = other.allocator;
             std::swap(allocation, other.allocation);
@@ -66,14 +66,14 @@ namespace engine
             return *this;
         }
 
-        inline ~Allocation()
+        inline ~BufferAllocation()
         {
             if (allocator)
                 vmaDestroyBuffer(*allocator, buffer, allocation);
         }
 
       protected:
-        inline Allocation(std::shared_ptr<VulkanAllocator> allocator, vk::DeviceSize size)
+        inline BufferAllocation(std::shared_ptr<VulkanAllocator> allocator, vk::DeviceSize size)
             : allocator(allocator)
             , allocation(nullptr)
             , buffer(nullptr)
@@ -81,7 +81,7 @@ namespace engine
         { }
     };
 
-    struct HostVisibleAllocation : public Allocation
+    struct HostVisibleBufferAllocation : public BufferAllocation
     {
       public:
         bool  coherent;
@@ -101,17 +101,17 @@ namespace engine
                 vmaFlushAllocation(*allocator, allocation, offset, size);
         }
 
-        inline HostVisibleAllocation()
-            : Allocation()
+        inline HostVisibleBufferAllocation()
+            : BufferAllocation()
             , coherent(false)
             , random_access(false)
             , p_mapping(nullptr)
         { }
 
-        inline HostVisibleAllocation(std::shared_ptr<VulkanAllocator> allocator, vk::DeviceSize size,
+        inline HostVisibleBufferAllocation(std::shared_ptr<VulkanAllocator> allocator, vk::DeviceSize size,
                                      vk::BufferUsageFlags usage,
                                      bool random_access = false)
-            : Allocation(allocator, size)
+            : BufferAllocation(allocator, size)
             , random_access(random_access)
         {
             vk::BufferCreateInfo bci = {
@@ -144,8 +144,8 @@ namespace engine
             p_mapping = alloc_info.pMappedData;
         }
 
-        inline HostVisibleAllocation(HostVisibleAllocation &&other) noexcept
-            : Allocation(std::move(other))
+        inline HostVisibleBufferAllocation(HostVisibleBufferAllocation &&other) noexcept
+            : BufferAllocation(std::move(other))
         {
             coherent  = other.coherent;
             p_mapping = other.p_mapping;
@@ -154,7 +154,7 @@ namespace engine
             other.p_mapping = nullptr;
         }
 
-        inline HostVisibleAllocation &operator=(HostVisibleAllocation &&other) noexcept
+        inline HostVisibleBufferAllocation &operator=(HostVisibleBufferAllocation &&other) noexcept
         {
             allocator  = other.allocator;
             allocation = other.allocation;
@@ -175,16 +175,16 @@ namespace engine
     };
 
     template<class T>
-    struct TypedHostVisibleAllocation : public HostVisibleAllocation
+    struct TypedHostVisibleBufferAllocation : public HostVisibleBufferAllocation
     {
       public:
-        inline TypedHostVisibleAllocation()
-            : HostVisibleAllocation()
+        inline TypedHostVisibleBufferAllocation()
+            : HostVisibleBufferAllocation()
         { }
 
-        inline TypedHostVisibleAllocation(std::shared_ptr<VulkanAllocator> allocator, vk::BufferUsageFlags usage,
+        inline TypedHostVisibleBufferAllocation(std::shared_ptr<VulkanAllocator> allocator, vk::BufferUsageFlags usage,
                                           bool random_access = false)
-            : HostVisibleAllocation(allocator, sizeof(T), usage, random_access)
+            : HostVisibleBufferAllocation(allocator, sizeof(T), usage, random_access)
         { }
 
         inline operator T *() { return (T *)p_mapping; }
@@ -195,17 +195,17 @@ namespace engine
     };
 
     template<class T>
-    struct TypedHostVisibleAllocation<T[]> : public HostVisibleAllocation
+    struct TypedHostVisibleBufferAllocation<T[]> : public HostVisibleBufferAllocation
     {
       public:
-        inline TypedHostVisibleAllocation()
-            : HostVisibleAllocation()
+        inline TypedHostVisibleBufferAllocation()
+            : HostVisibleBufferAllocation()
         { }
 
-        inline TypedHostVisibleAllocation(std::shared_ptr<VulkanAllocator> allocator, vk::DeviceSize count,
+        inline TypedHostVisibleBufferAllocation(std::shared_ptr<VulkanAllocator> allocator, vk::DeviceSize count,
                                           vk::BufferUsageFlags usage,
                                           bool random_access = false)
-            : HostVisibleAllocation(allocator, sizeof(T) * count, usage, random_access)
+            : HostVisibleBufferAllocation(allocator, sizeof(T) * count, usage, random_access)
         { }
 
         inline T       *get() { return (T *)get_map(); }
@@ -238,16 +238,16 @@ namespace engine
     };
 
     template<class T, size_t COUNT>
-    struct TypedHostVisibleAllocation<T[COUNT]> : public TypedHostVisibleAllocation<T[]>
+    struct TypedHostVisibleBufferAllocation<T[COUNT]> : public TypedHostVisibleBufferAllocation<T[]>
     {
       public:
-        inline TypedHostVisibleAllocation()
-            : TypedHostVisibleAllocation<T[]>()
+        inline TypedHostVisibleBufferAllocation()
+            : TypedHostVisibleBufferAllocation<T[]>()
         { }
 
-        inline TypedHostVisibleAllocation(std::shared_ptr<VulkanAllocator> allocator, vk::BufferUsageFlags usage,
+        inline TypedHostVisibleBufferAllocation(std::shared_ptr<VulkanAllocator> allocator, vk::BufferUsageFlags usage,
                                           bool random_access = false)
-            : TypedHostVisibleAllocation<T[]>(allocator, COUNT, usage, random_access)
+            : TypedHostVisibleBufferAllocation<T[]>(allocator, COUNT, usage, random_access)
         { }
     };
 } // namespace engine
