@@ -36,7 +36,8 @@ namespace engine
 
     struct PreparedPipelineConfiguration
     {
-        PreparedPipelineConfiguration(const PipelineConfiguration &config, vk::PipelineLayout pipeline_layout, vk::RenderPass render_pass);
+        PreparedPipelineConfiguration(const PipelineConfiguration &config, vk::PipelineLayout pipeline_layout,
+                                      vk::RenderPass render_pass);
 
         vk::PipelineDynamicStateCreateInfo             dynamic_state;
         std::vector<vk::PipelineShaderStageCreateInfo> shader_stages;
@@ -103,7 +104,15 @@ namespace engine
         };
 
         depth_stencil = {
-            // TODO - later configuration
+            .depthTestEnable       = true,
+            .depthWriteEnable      = true,
+            .depthCompareOp        = vk::CompareOp::eLess,
+            .depthBoundsTestEnable = false,
+            .stencilTestEnable     = false,
+            .front                 = {},
+            .back                  = {},
+            .minDepthBounds        = 0.0,
+            .maxDepthBounds        = 1.0,
         };
 
         color_blending = {
@@ -125,7 +134,7 @@ namespace engine
             .pViewportState      = &viewport_state,
             .pRasterizationState = &rasterizer,
             .pMultisampleState   = &multisampling,
-            .pDepthStencilState  = nullptr,
+            .pDepthStencilState  = &depth_stencil,
             .pColorBlendState    = &color_blending,
             .pDynamicState       = &dynamic_state,
             .layout              = pipeline_layout,
