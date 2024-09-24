@@ -7,7 +7,7 @@ using std::array;
 
 namespace engine
 {
-    GouraudMesh::GouraudMesh(Allocation allocation, vk::DeviceSize vtx_off, vk::DeviceSize idx_off, uint32_t count)
+    GouraudMesh::GouraudMesh(BufferAllocation allocation, vk::DeviceSize vtx_off, vk::DeviceSize idx_off, uint32_t count)
         : allocation(std::move(allocation))
         , model_matrix(this->allocation.allocator, vk::BufferUsageFlagBits::eUniformBuffer)
         , vtx_offset(vtx_off)
