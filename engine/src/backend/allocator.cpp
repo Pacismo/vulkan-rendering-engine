@@ -10,7 +10,7 @@ namespace engine
         if (shared_ptr<VulkanAllocator> ptr = device_manager->allocator.lock())
             return ptr;
 
-        auto ptr = shared_ptr<VulkanAllocator>(new VulkanAllocator(device_manager));
+        auto ptr                  = shared_ptr<VulkanAllocator>(new VulkanAllocator(device_manager));
         device_manager->allocator = ptr;
         return ptr;
     }
@@ -39,6 +39,11 @@ namespace engine
     VulkanAllocator::operator const VmaAllocator() const
     {
         return m_allocator;
+    }
+
+    RenderDeviceManager::Shared VulkanAllocator::get_device_manager()
+    {
+        return m_device_manager;
     }
 
     VulkanAllocator::~VulkanAllocator()
