@@ -10,9 +10,9 @@ set(ENGINE_SOURCES
     "include/input/mouse.hpp"
     "include/input/controller.hpp"
 
-    "src/logger.cpp"                     "include/logger.hpp"
-    "src/window.cpp"                     "include/window.hpp"
-    "src/exceptions.cpp"                 "include/exceptions.hpp"
+    "src/logger.cpp"                             "include/logger.hpp"
+    "src/window.cpp"                             "include/window.hpp"
+    "src/exceptions.cpp"                         "include/exceptions.hpp"
 
     "include/resources/image.hpp"
 
@@ -20,20 +20,20 @@ set(ENGINE_SOURCES
     "include/backend/vertex_description.hpp"
     "include/backend/pipeline_configuration.hpp"
     "include/backend/allocation.hpp"
-    "src/backend/image_allocation.cpp"   "include/backend/image_allocation.hpp"
-    "src/backend/instance_manager.cpp"   "include/backend/instance_manager.hpp"
-    "src/backend/vk_result.cpp"          "include/backend/vk_result.hpp"
-    "src/backend/device_manager.cpp"     "include/backend/device_manager.hpp"
-    "src/backend/vulkan_backend.cpp"     "include/backend/vulkan_backend.hpp"
-    "src/backend/descriptor_pool.cpp"    "include/backend/descriptor_pool.hpp"
-    "src/backend/command_pool.cpp"       "include/backend/command_pool.hpp"
-    "src/backend/allocator.cpp"          "include/backend/allocator.hpp"
-    "src/backend/swapchain.cpp"          "include/backend/swapchain.hpp"
+    "src/backend/image_allocation.cpp"           "include/backend/image_allocation.hpp"
+    "src/backend/instance_manager.cpp"           "include/backend/instance_manager.hpp"
+    "src/backend/vk_result.cpp"                  "include/backend/vk_result.hpp"
+    "src/backend/device_manager.cpp"             "include/backend/device_manager.hpp"
+    "src/backend/vulkan_backend.cpp"             "include/backend/vulkan_backend.hpp"
+    "src/backend/descriptor_pool.cpp"            "include/backend/descriptor_pool.hpp"
+    "src/backend/command_pool.cpp"               "include/backend/command_pool.hpp"
+    "src/backend/allocator.cpp"                  "include/backend/allocator.hpp"
+    "src/backend/swapchain.cpp"                  "include/backend/swapchain.hpp"
 
-    "src/gui/imgui_manager.cpp"          "include/gui/imgui_manager.hpp"
+    "src/gui/imgui_manager.cpp"                  "include/gui/imgui_manager.hpp"
 
     "include/drawables/drawing_context.hpp"
-    "src/drawables/GouraudMesh.cpp"      "include/drawables/GouraudMesh.hpp"
+    "src/drawables/GouraudMesh.cpp"              "include/drawables/GouraudMesh.hpp"
 )
 
 add_library(engine ${ENGINE_SOURCES})
