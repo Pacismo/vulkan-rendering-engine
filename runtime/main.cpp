@@ -284,7 +284,7 @@ class ExampleWindow : public Window
         glm::vec3 transform = {get_axis(KeyboardKey::D, KeyboardKey::A, KeyboardKey::W, KeyboardKey::S),
                                get_magnitude(KeyboardKey::Q, KeyboardKey::E)};
 
-        if (glm::dot(transform, transform) > FLT_EPSILON) {
+        if (glm::dot(transform, transform) > FLT_EPSILON && camera_mouse) {
             float magnitude = MOTION_SPEED * delta;
             if (glfwGetKey(m_window, GLFW_KEY_LEFT_SHIFT))
                 magnitude *= 2.0;
