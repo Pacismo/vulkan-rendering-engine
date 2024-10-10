@@ -31,6 +31,7 @@ set(ENGINE_SOURCES
     "src/backend/swapchain.cpp"                  "include/backend/swapchain.hpp"
 
     "src/gui/imgui_manager.cpp"                  "include/gui/imgui_manager.hpp"
+    "src/gui/applet.cpp"                         "include/gui/applet.hpp"
 
     "include/drawables/drawing_context.hpp"
     "src/drawables/GouraudMesh.cpp"              "include/drawables/GouraudMesh.hpp"
