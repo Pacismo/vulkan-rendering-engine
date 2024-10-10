@@ -3,7 +3,6 @@
 #include "constants.hpp"
 #include "object.hpp"
 
-
 namespace engine
 {
     class GouraudMesh : public Object
@@ -11,9 +10,9 @@ namespace engine
       public:
         BufferAllocation                                           allocation;
         TypedHostVisibleBufferAllocation<glm::mat4[MAX_IN_FLIGHT]> model_matrix;
-        vk::DeviceSize                                       vtx_offset;
-        vk::DeviceSize                                       idx_offset;
-        uint32_t                                             count;
+        vk::DeviceSize                                             vtx_offset;
+        vk::DeviceSize                                             idx_offset;
+        uint32_t                                                   count;
 
         GouraudMesh(BufferAllocation allocation, vk::DeviceSize vtx_off, vk::DeviceSize idx_off, uint32_t count);
 
