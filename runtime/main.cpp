@@ -11,6 +11,10 @@
 #include <vulkan/vulkan.hpp>
 #include <window.hpp>
 
+#include "Cube.hpp"
+#include "CubeMutator.hpp"
+#include "HintBox.hpp"
+
 #if TERMINAL_ENABLED or not defined(WIN32)
 #    define MAIN int main()
 #else
@@ -21,76 +25,6 @@ using namespace std::chrono_literals;
 using engine::primitives::GouraudVertex, engine::Object, engine::CameraTransform, engine::KeyboardKey,
     engine::KeyAction, engine::ModifierKey, engine::contains, engine::DEFAULT_FOV;
 using std::shared_ptr, std::initializer_list, engine::Window, std::string_view, std::array, std::list, std::shared_ptr;
-
-const array<GouraudVertex, 24> VERTICES = {
-    // -Z
-    GouraudVertex {.position = {-0.5, -0.5, -0.5}, .color = {0.0, 0.0, 0.5}},
-    GouraudVertex { .position = {0.5, -0.5, -0.5}, .color = {0.0, 0.0, 0.5}},
-    GouraudVertex {  .position = {0.5, 0.5, -0.5}, .color = {0.0, 0.0, 0.5}},
-    GouraudVertex { .position = {-0.5, 0.5, -0.5}, .color = {0.0, 0.0, 0.5}},
-
-    // +Z
-    GouraudVertex { .position = {-0.5, -0.5, 0.5}, .color = {0.0, 0.0, 1.0}},
-    GouraudVertex {  .position = {0.5, -0.5, 0.5}, .color = {0.0, 0.0, 1.0}},
-    GouraudVertex {   .position = {0.5, 0.5, 0.5}, .color = {0.0, 0.0, 1.0}},
-    GouraudVertex {  .position = {-0.5, 0.5, 0.5}, .color = {0.0, 0.0, 1.0}},
-
-    // -Y
-    GouraudVertex {.position = {-0.5, -0.5, -0.5}, .color = {0.0, 0.5, 0.0}},
-    GouraudVertex { .position = {0.5, -0.5, -0.5}, .color = {0.0, 0.5, 0.0}},
-    GouraudVertex { .position = {-0.5, -0.5, 0.5}, .color = {0.0, 0.5, 0.0}},
-    GouraudVertex {  .position = {0.5, -0.5, 0.5}, .color = {0.0, 0.5, 0.0}},
-
-    // +Y
-    GouraudVertex {  .position = {0.5, 0.5, -0.5}, .color = {0.0, 1.0, 0.0}},
-    GouraudVertex { .position = {-0.5, 0.5, -0.5}, .color = {0.0, 1.0, 0.0}},
-    GouraudVertex {   .position = {0.5, 0.5, 0.5}, .color = {0.0, 1.0, 0.0}},
-    GouraudVertex {  .position = {-0.5, 0.5, 0.5}, .color = {0.0, 1.0, 0.0}},
-
-    // -X
-    GouraudVertex { .position = {-0.5, 0.5, -0.5}, .color = {0.5, 0.0, 0.0}},
-    GouraudVertex { .position = {-0.5, -0.5, 0.5}, .color = {0.5, 0.0, 0.0}},
-    GouraudVertex {  .position = {-0.5, 0.5, 0.5}, .color = {0.5, 0.0, 0.0}},
-    GouraudVertex {.position = {-0.5, -0.5, -0.5}, .color = {0.5, 0.0, 0.0}},
-
-    // +X
-    GouraudVertex { .position = {0.5, -0.5, -0.5}, .color = {1.0, 0.0, 0.0}},
-    GouraudVertex {  .position = {0.5, 0.5, -0.5}, .color = {1.0, 0.0, 0.0}},
-    GouraudVertex {  .position = {0.5, -0.5, 0.5}, .color = {1.0, 0.0, 0.0}},
-    GouraudVertex {   .position = {0.5, 0.5, 0.5}, .color = {1.0, 0.0, 0.0}},
-};
-
-const array<uint32_t, 36> INDICES = {
-    0,  1,  2,  2,  3,  0,  //  0  1  2  3
-    6,  5,  4,  4,  7,  6,  //  4  5  6  7
-    11, 9,  8,  10, 11, 8,  //  8  9 10 11
-    15, 13, 12, 14, 15, 12, // 12 13 14 15
-    17, 19, 16, 18, 17, 16, // 16 17 18 19
-    23, 21, 20, 22, 23, 20, // 20 21 22 23
-};
-
-class Cube : public Object
-{
-  public:
-    Cube(engine::VulkanBackend &backend)
-    {
-        auto vertices = VERTICES;
-        auto indices  = INDICES;
-
-        mesh = backend.load(vertices, indices);
-    }
-
-    void physics_process(double delta) override
-    {
-        if (rotate)
-            transform.rotation.z = glm::mod<float>(transform.rotation.z + 180.0_deg * delta, 360.0_deg);
-    }
-
-    void draw(engine::DrawingContext &context, const glm::mat4 &) override { mesh->draw(context, transform); }
-
-    std::shared_ptr<Object> mesh;
-    bool                    rotate = true;
-};
 
 class ExampleWindow : public Window
 {
@@ -104,15 +38,19 @@ class ExampleWindow : public Window
             glfwSetInputMode(m_window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
         }
     }
+
     ExampleWindow(string_view title, int width, int height)
         : Window(title, width, height, "Runtime", {0, 1, 0})
+        , hint_box(camera, fov, show_demo_window, cube_mutator, camera_mouse)
     {
         auto &rb = get_render_backend();
 
-        cube = shared_ptr<Cube>(new Cube(rb));
+        cube   = shared_ptr<Cube>(new Cube(rb));
         cube_2 = shared_ptr<Cube>(new Cube(rb));
         objects.push_back(cube);
         objects.push_back(cube_2);
+
+        cube_mutator.set_cube(cube);
 
         camera.location = {2.0, 2.0, 2.0};
         camera.rotation = {135.0_deg, -35.0_deg};
@@ -140,7 +78,7 @@ class ExampleWindow : public Window
             break;
         case F2:
             if (action == KeyAction::Press)
-                show_cube_mutator = !show_cube_mutator;
+                cube_mutator.visible(!cube_mutator.visible());
             break;
         case R:
             if (action == KeyAction::Press) {
@@ -148,9 +86,11 @@ class ExampleWindow : public Window
                 camera.rotation = {135.0_deg, -35.0_deg};
                 get_render_backend().update_fov(fov = DEFAULT_FOV);
 
-                cube->transform.location = {0.0, 0.0, 0.0};
-                cube->transform.rotation = {0.0, 0.0, 0.0};
-                cube->transform.scale    = {1.0, 1.0, 1.0};
+                for (auto &object : objects) {
+                    object->transform.location = {0.0, 0.0, 0.0};
+                    object->transform.rotation = {0.0, 0.0, 0.0};
+                    object->transform.scale    = {1.0, 1.0, 1.0};
+                }
             }
             break;
         default:
@@ -182,96 +122,20 @@ class ExampleWindow : public Window
 
     static constexpr float MOTION_SPEED = 2.5;
 
-    bool show_demo_window  = false;
-    bool show_cube_mutator = false;
-
-    void cube_mutator()
-    {
-        ImGuiIO         &io    = ImGui::GetIO();
-        ImGuiWindowFlags flags = ImGuiWindowFlags_None;
-
-        if (ImGui::Begin("Cube Mutator", &show_cube_mutator, flags)) {
-            ImGui::Checkbox("Enable Rotation", &cube->rotate);
-
-            ImGui::DragFloat3("Location", &cube->transform.location.x, 1.0);
-            ImGui::DragFloat3("Rotation", &cube->transform.rotation.x, 0.1, 0.0, 360.0_deg, "%.3f",
-                              ImGuiSliderFlags_WrapAround);
-            ImGui::DragFloat3("Scale", &cube->transform.scale.x, 1.0);
-        }
-        ImGui::End();
-    }
-
-    void draw_hint_box()
-    {
-        static constexpr const char *strings[] = {
-            "F1  - Show ImGui Demo Window",
-            "F2  - Show Cube Mutator Window",
-            "TAB - Enable/Disable Mouse Capture",
-            "R   - Reset World",
-        };
-
-        constexpr float  PADDING = 10.0f;
-        ImGuiIO         &io      = ImGui::GetIO();
-        ImGuiWindowFlags flags   = ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_AlwaysAutoResize
-                               | ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoFocusOnAppearing
-                               | ImGuiWindowFlags_NoNav | ImGuiWindowFlags_NoMove;
-
-        auto   viewport      = ImGui::GetMainViewport();
-        auto   pos           = viewport->WorkPos;
-        auto   size          = viewport->WorkSize;
-        ImVec2 overlay_pos   = ImVec2(pos.x + size.x - PADDING, pos.y + size.y - PADDING);
-        ImVec2 overlay_pivot = ImVec2(1.0, 1.0);
-        ImGui::SetNextWindowPos(overlay_pos, ImGuiCond_Always, overlay_pivot);
-        if (ImGui::Begin("Hints", nullptr, flags)) {
-            ImGui::Text("Shortcuts");
-            const ImVec4 on_color  = ImVec4(0.0, 1.0, 0.0, 1.0);
-            const ImVec4 off_color = ImVec4(1.0, 0.0, 0.0, 1.0);
-
-            if (show_demo_window)
-                ImGui::TextColored(on_color, strings[0]);
-            else
-                ImGui::TextColored(off_color, strings[0]);
-
-            if (show_cube_mutator)
-                ImGui::TextColored(on_color, strings[1]);
-            else
-                ImGui::TextColored(off_color, strings[1]);
-
-            if (camera_mouse)
-                ImGui::TextColored(on_color, strings[2]);
-            else
-                ImGui::TextColored(off_color, strings[2]);
-
-            ImGui::Text(strings[3]);
-
-            ImGui::Separator();
-
-            std::string str = fmt::format("Location: [{: 5.3F}, {: 5.3F}, {: 5.3F}]", camera.location.x,
-                                          camera.location.y, camera.location.z);
-            ImGui::TextUnformatted(str.c_str());
-
-            str = fmt::format("Rotation: [{:>7.3F}, {:>7.3F}]", glm::degrees(camera.rotation.x),
-                              glm::degrees(camera.rotation.y));
-            ImGui::TextUnformatted(str.c_str());
-
-            str = fmt::format("FOV:      {:.1F}", fov);
-            ImGui::TextUnformatted(str.c_str());
-        }
-        ImGui::End();
-    }
+    bool show_demo_window = false;
 
     void draw_ui()
     {
         if (camera_mouse)
             ImGui::BeginDisabled();
 
-        if (show_cube_mutator)
-            cube_mutator();
+        if (cube_mutator)
+            cube_mutator.draw();
 
         if (show_demo_window)
             ImGui::ShowDemoWindow(&show_demo_window);
 
-        draw_hint_box();
+        hint_box.draw();
 
         if (camera_mouse)
             ImGui::EndDisabled();
@@ -311,6 +175,9 @@ class ExampleWindow : public Window
 
     bool  camera_mouse = true;
     float fov          = DEFAULT_FOV;
+
+    HintBox     hint_box;
+    CubeMutator cube_mutator;
 };
 
 static void set_spdlog_global_settings()
