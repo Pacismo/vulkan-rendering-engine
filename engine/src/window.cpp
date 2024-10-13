@@ -107,12 +107,7 @@ namespace engine
 
     void Window::run(double pproc_freq)
     {
-        double     avg            = 0.0;
-        uint32_t   count          = 0;
-        uint32_t   max            = 5;
-        duration   print_period   = 1s;
         time_point last_draw      = system_clock::now();
-        time_point next_print     = last_draw;
         time_point next_physics   = last_draw;
         duration   physics_period = duration<double, seconds::period>(1.0 / pproc_freq);
 
@@ -144,13 +139,6 @@ namespace engine
                 duration<double> dur = system_clock::now() - start;
 
                 last_draw = now;
-                if (count < max)
-                    count += 1;
-                avg = (avg * (count - 1) + dur.count()) / count;
-                if (now >= next_print) {
-                    spdlog::info("Average Frametime: {:.2F}", 1.0 / avg);
-                    next_print += print_period;
-                }
             }
         } catch (vk::SystemError &error) {
             auto &code    = error.code();
