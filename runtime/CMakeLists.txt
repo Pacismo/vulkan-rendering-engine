@@ -1,8 +1,8 @@
 set(RUNTIME_SOURCES 
 	"main.cpp" 
-	"HintBox.hpp"	  "HintBox.cpp" 
-	"CubeMutator.hpp" "CubeMutator.cpp"
-	"Cube.hpp"		  "Cube.cpp"
+	"HintBox.hpp"       "HintBox.cpp" 
+	"ObjectMutator.hpp" "ObjectMutator.cpp"
+	"Cube.hpp"          "Cube.cpp"
 )
 
 if (${TERMINAL} OR NOT (WIN32 AND MSVC))
