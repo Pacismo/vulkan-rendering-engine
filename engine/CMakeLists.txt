@@ -3,12 +3,15 @@ set(ENGINE_SOURCES
     "shader.frag"
 
     "include/version.hpp"
-    "include/object.hpp"
+    "src/object.cpp"                            "include/object.hpp"
     "include/constants.hpp"
     "include/vertex.hpp"
     "include/input/keyboard.hpp"
     "include/input/mouse.hpp"
     "include/input/controller.hpp"
+
+    "include/reflection/datastructure.hpp"
+    "include/reflection/fieldtype.hpp"
 
     "src/logger.cpp"                             "include/logger.hpp"
     "src/window.cpp"                             "include/window.hpp"
