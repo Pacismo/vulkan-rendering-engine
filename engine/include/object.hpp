@@ -3,6 +3,8 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <memory>
+#include <string>
+#include "reflection/datastructure.hpp"
 
 namespace engine
 {
@@ -12,15 +14,20 @@ namespace engine
     class Object
     {
       public:
-        virtual ~Object() = default;
+        virtual ~Object();
 
         virtual void draw(struct DrawingContext &context, const glm::mat4 &parent_transform = {1.0}) = 0;
 
-        inline virtual void process(double delta) { }
-        inline virtual void physics_process(double delta) { }
+        virtual void process(double delta);
+        virtual void physics_process(double delta);
 
-        Transform transform;
+        virtual const reflection::Datastructure *get_rep() const;
+
+        Transform   transform;
+        std::string name;
 
         std::weak_ptr<Object> parent;
     };
+
+    extern const reflection::Datastructure OBJECT_REP;
 } // namespace engine
