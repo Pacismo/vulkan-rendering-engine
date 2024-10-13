@@ -12,8 +12,8 @@
 #include <window.hpp>
 
 #include "Cube.hpp"
-#include "CubeMutator.hpp"
 #include "HintBox.hpp"
+#include "ObjectMutator.hpp"
 
 #if TERMINAL_ENABLED or not defined(WIN32)
 #    define MAIN int main()
@@ -24,7 +24,8 @@
 using namespace std::chrono_literals;
 using engine::primitives::GouraudVertex, engine::Object, engine::CameraTransform, engine::KeyboardKey,
     engine::KeyAction, engine::ModifierKey, engine::contains, engine::DEFAULT_FOV;
-using std::shared_ptr, std::initializer_list, engine::Window, std::string_view, std::array, std::list, std::shared_ptr;
+using std::shared_ptr, std::initializer_list, engine::Window, std::string_view, std::array, std::vector,
+    std::shared_ptr;
 
 class ExampleWindow : public Window
 {
@@ -42,15 +43,16 @@ class ExampleWindow : public Window
     ExampleWindow(string_view title, int width, int height)
         : Window(title, width, height, "Runtime", {0, 1, 0})
         , hint_box(camera, fov, show_demo_window, cube_mutator, camera_mouse)
+        , cube_mutator(objects)
     {
         auto &rb = get_render_backend();
 
-        cube   = shared_ptr<Cube>(new Cube(rb));
-        cube_2 = shared_ptr<Cube>(new Cube(rb));
+        cube         = shared_ptr<Cube>(new Cube(rb));
+        cube->name   = "Cube 1";
+        cube_2       = shared_ptr<Cube>(new Cube(rb));
+        cube_2->name = "Cube 2";
         objects.push_back(cube);
         objects.push_back(cube_2);
-
-        cube_mutator.set_cube(cube);
 
         camera.location = {2.0, 2.0, 2.0};
         camera.rotation = {135.0_deg, -35.0_deg};
@@ -62,29 +64,35 @@ class ExampleWindow : public Window
 
     void on_key_action(KeyboardKey key, ModifierKey mods, KeyAction action, int scancode) override
     {
-        using KeyboardKey::Tab, KeyboardKey::Escape, KeyboardKey::F1, KeyboardKey::F2, KeyboardKey::R;
+        using KeyboardKey::Tab, KeyboardKey::Escape, KeyboardKey::F1, KeyboardKey::F2, KeyboardKey::R, KeyboardKey::F3;
 
         switch (key) {
         case Escape:
-            close();
+            if (!!(mods & ModifierKey::Shift))
+                close();
             break;
         case Tab:
             if (action == KeyAction::Press)
                 capture_mouse(camera_mouse = !camera_mouse);
             break;
+#ifndef NDEBUG
         case F1:
-            if (action == KeyAction::Press)
-                show_demo_window = !show_demo_window;
+            ImGui::DebugStartItemPicker();
             break;
+#endif
         case F2:
             if (action == KeyAction::Press)
                 cube_mutator.visible(!cube_mutator.visible());
+            break;
+        case F3:
+            if (action == KeyAction::Press)
+                show_demo_window = !show_demo_window;
             break;
         case R:
             if (action == KeyAction::Press) {
                 camera.location = {2.0, 2.0, 2.0};
                 camera.rotation = {135.0_deg, -35.0_deg};
-                get_render_backend().update_fov(fov = DEFAULT_FOV);
+                update_fov(fov = DEFAULT_FOV);
 
                 for (auto &object : objects) {
                     object->transform.location = {0.0, 0.0, 0.0};
@@ -117,7 +125,7 @@ class ExampleWindow : public Window
             return;
 
         fov = glm::clamp(fov + yoff * COEFFICIENT, 15.0, 100.0);
-        get_render_backend().update_fov(fov);
+        update_fov(fov);
     }
 
     static constexpr float MOTION_SPEED = 2.5;
@@ -156,7 +164,7 @@ class ExampleWindow : public Window
             camera.location +=
                 glm::normalize(glm::vec3(camera.get_facing_matrix() * glm::vec4(transform, 1.0))) * magnitude;
         }
-        get_render_backend().update_view(camera);
+        update_view(camera);
 
         for (auto &object : objects)
             object->physics_process(delta);
@@ -168,16 +176,16 @@ class ExampleWindow : public Window
             obj->draw(ctx);
     }
 
-    CameraTransform          camera;
-    shared_ptr<Cube>         cube    = nullptr;
-    shared_ptr<Cube>         cube_2  = nullptr;
-    list<shared_ptr<Object>> objects = {};
+    CameraTransform            camera;
+    shared_ptr<Cube>           cube    = nullptr;
+    shared_ptr<Cube>           cube_2  = nullptr;
+    vector<shared_ptr<Object>> objects = {};
 
     bool  camera_mouse = true;
     float fov          = DEFAULT_FOV;
 
-    HintBox     hint_box;
-    CubeMutator cube_mutator;
+    HintBox       hint_box;
+    ObjectMutator cube_mutator;
 };
 
 static void set_spdlog_global_settings()
