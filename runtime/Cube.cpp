@@ -5,6 +5,7 @@
 #include <vertex.hpp>
 
 using engine::primitives::GouraudVertex;
+using namespace engine::reflection;
 
 static const std::array<GouraudVertex, 24> VERTICES = {
   // -Z
@@ -70,4 +71,15 @@ void Cube::physics_process(double delta)
 void Cube::draw(engine::DrawingContext &context, const glm::mat4 &parent)
 {
     mesh->draw(context, parent * glm::mat4(transform));
+}
+
+const Field CUBE_FIELDS[] = {
+    Field("rotate", FieldTypeBits::Boolean, offsetof(Cube, rotate)),
+};
+
+const Datastructure CUBE_REP = Datastructure("Cube", CUBE_FIELDS, &engine::OBJECT_REP);
+
+const engine::reflection::Datastructure *Cube::get_rep() const
+{
+    return &CUBE_REP;
 }

@@ -12,6 +12,10 @@ class Cube : public engine::Object
 
     void draw(engine::DrawingContext &context, const glm::mat4 &parent) override;
 
+    const engine::reflection::Datastructure *get_rep() const;
+
     std::shared_ptr<engine::GouraudMesh> mesh;
     bool                                 rotate = true;
 };
+
+extern const engine::reflection::Datastructure CUBE_REP;
