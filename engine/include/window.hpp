@@ -43,6 +43,9 @@ namespace engine
 
         void set_title(std::string_view new_title);
 
+        inline void update_view(const glm::mat4 &mat) { m_backend->update_view(mat); }
+        inline void update_fov(float fov) { m_backend->update_fov(fov); }
+
         class VulkanBackend &get_render_backend();
 
         virtual void handle_draw(struct DrawingContext &context) = 0;
