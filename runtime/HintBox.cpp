@@ -6,8 +6,9 @@ static ImGuiWindowFlags DEFAULT_FLAGS = ImGuiWindowFlags_NoDecoration | ImGuiWin
                                       | ImGuiWindowFlags_NoNav | ImGuiWindowFlags_NoMove;
 
 static constexpr const char *STRINGS[] = {
-    "F1  - Show ImGui Demo Window",
+    "F1  - Debug Picker",
     "F2  - Show Cube Mutator Window",
+    "F3  - Show ImGui Demo Window",
     "TAB - Enable/Disable Mouse Capture",
     "R   - Reset World",
 };
@@ -28,7 +29,6 @@ void HintBox::draw(ImGuiViewport *viewport)
 {
     constexpr float PADDING = 10.0f;
 
-    ImGuiIO &io            = ImGui::GetIO();
     auto     pos           = viewport->WorkPos;
     auto     size          = viewport->WorkSize;
     ImVec2   overlay_pos   = ImVec2(pos.x + size.x - PADDING, pos.y + size.y - PADDING);
@@ -46,22 +46,26 @@ void HintBox::populate(ImGuiViewport *viewport)
     const ImVec4 on_color  = ImVec4(0.0, 1.0, 0.0, 1.0);
     const ImVec4 off_color = ImVec4(1.0, 0.0, 0.0, 1.0);
 
-    if (*show_demo_window)
-        ImGui::TextColored(on_color, STRINGS[0]);
-    else
-        ImGui::TextColored(off_color, STRINGS[0]);
+#ifndef NDEBUG
+    ImGui::Text(STRINGS[0]);
+#endif
 
     if (*show_cube_mutator)
         ImGui::TextColored(on_color, STRINGS[1]);
     else
         ImGui::TextColored(off_color, STRINGS[1]);
 
-    if (*camera_mouse)
+    if (*show_demo_window)
         ImGui::TextColored(on_color, STRINGS[2]);
     else
         ImGui::TextColored(off_color, STRINGS[2]);
 
-    ImGui::Text(STRINGS[3]);
+    if (*camera_mouse)
+        ImGui::TextColored(on_color, STRINGS[3]);
+    else
+        ImGui::TextColored(off_color, STRINGS[3]);
+
+    ImGui::Text(STRINGS[4]);
 
     ImGui::Separator();
 
