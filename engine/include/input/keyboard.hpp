@@ -172,6 +172,10 @@ namespace engine
         Repeat  = GLFW_REPEAT,
     };
 
+    inline constexpr bool operator !(ModifierKey value) {
+        return uint32_t(value) == 0;
+    }
+
     inline constexpr ModifierKey operator|(ModifierKey l, ModifierKey r)
     {
         return ModifierKey(uint32_t(l) | uint32_t(r));
@@ -190,6 +194,10 @@ namespace engine
     inline constexpr ModifierKey &operator&=(ModifierKey &l, ModifierKey r)
     {
         return l = l & r;
+    }
+
+    inline constexpr bool operator!(KeyAction value) {
+        return uint32_t(value) == 0;
     }
         
     inline constexpr KeyAction operator|(KeyAction l, KeyAction r)
