@@ -3,50 +3,54 @@
 #include <string>
 #include <string_view>
 
-namespace engine::gui
+namespace engine
 {
-    class Applet
+    namespace gui
     {
-      public:
-        Applet(std::string_view title, bool draw = false, bool closeable = false, ImGuiWindowFlags window_flags = 0);
-        virtual ~Applet();
+        class Applet
+        {
+          public:
+            Applet(std::string_view title, bool draw = false, bool closeable = false,
+                   ImGuiWindowFlags window_flags = 0);
+            virtual ~Applet();
 
-        /// Draw the window to the screen.
-        ///
-        /// By default, gives the window:
-        ///  - The title
-        ///  - A closing widget, if enabled
-        ///  - The provided flags
-        ///
-        /// The window is drawn if the visible flag is `true`.
-        ///
-        /// Overriding should be done if additional changes must be made to the window
-        virtual void draw(ImGuiViewport *viewport = ImGui::GetMainViewport());
+            /// Draw the window to the screen.
+            ///
+            /// By default, gives the window:
+            ///  - The title
+            ///  - A closing widget, if enabled
+            ///  - The provided flags
+            ///
+            /// The window is drawn if the visible flag is `true`.
+            ///
+            /// Overriding should be done if additional changes must be made to the window
+            virtual void draw(ImGuiViewport *viewport = ImGui::GetMainViewport());
 
-        void visible(bool);
-        bool visible() const;
+            void visible(bool);
+            bool visible() const;
 
-        void closeable(bool);
-        bool closeable() const;
+            void closeable(bool);
+            bool closeable() const;
 
-        void             flags(ImGuiWindowFlags);
-        ImGuiWindowFlags flags() const;
+            void             flags(ImGuiWindowFlags);
+            ImGuiWindowFlags flags() const;
 
-        void add_flags(ImGuiWindowFlags);
-        void remove_flags(ImGuiWindowFlags);
+            void add_flags(ImGuiWindowFlags);
+            void remove_flags(ImGuiWindowFlags);
 
-        void             title(std::string_view new_title);
-        std::string_view title() const;
+            void             title(std::string_view new_title);
+            std::string_view title() const;
 
-        operator bool &();
+            operator bool &();
 
-      protected:
-        virtual void populate(ImGuiViewport *viewport);
+          protected:
+            virtual void populate(ImGuiViewport *viewport);
 
-      private:
-        std::string      m_title;
-        ImGuiWindowFlags m_flags;
-        bool             m_closeable;
-        bool             m_visible;
-    };
-} // namespace engine::gui
+          private:
+            std::string      m_title;
+            ImGuiWindowFlags m_flags;
+            bool             m_closeable;
+            bool             m_visible;
+        };
+    } // namespace gui
+} // namespace engine
