@@ -61,6 +61,7 @@ namespace engine
         configuration = config;
         create_swapchain();
         get_swapchain_images();
+        return true;
     }
 
     void SwapchainManager::init(SharedDeviceManager device_manager, vk::SurfaceKHR surface,
