@@ -1,0 +1,44 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Launch release-x64w",
+            "program": "${workspaceFolder}/build/release-x64w/runtime/runtime.exe",
+            "args": [],
+            "cwd": "${workspaceFolder}",
+            "preLaunchTask": "CMake: build"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Launch debug-x64w",
+            "program": "${workspaceFolder}/build/debug-x64w/runtime/runtime.exe",
+            "args": [],
+            "cwd": "${workspaceFolder}",
+            "preLaunchTask": "CMake: build"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Launch release-x64linux",
+            "program": "${workspaceFolder}/build/release-x64linux/runtime/runtime.exe",
+            "args": [],
+            "cwd": "${workspaceFolder}",
+            "preLaunchTask": "CMake: build"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Launch debug-x64linux",
+            "program": "${workspaceFolder}/build/debug-x64linux/runtime/runtime.exe",
+            "args": [],
+            "cwd": "${workspaceFolder}",
+            "preLaunchTask": "CMake: build"
+        },
+    ]
+}
