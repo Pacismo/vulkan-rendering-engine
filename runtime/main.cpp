@@ -5,7 +5,6 @@
 #include <imgui.h>
 #include <memory>
 #include <object.hpp>
-#include <span>
 #include <spdlog/sinks/stdout_color_sinks.h>
 #include <vertex.hpp>
 #include <vulkan/vulkan.hpp>
@@ -14,6 +13,8 @@
 #include "Cube.hpp"
 #include "HintBox.hpp"
 #include "ObjectMutator.hpp"
+#include "RuntimeInfo.hpp"
+#include "input/keyboard.hpp"
 
 #if TERMINAL_ENABLED or not defined(WIN32)
 #    define MAIN int main()
@@ -22,10 +23,9 @@
 #endif
 
 using namespace std::chrono_literals;
-using engine::primitives::GouraudVertex, engine::Object, engine::CameraTransform, engine::KeyboardKey,
-    engine::KeyAction, engine::ModifierKey, engine::contains, engine::DEFAULT_FOV;
-using std::shared_ptr, std::initializer_list, engine::Window, std::string_view, std::array, std::vector,
-    std::shared_ptr;
+using engine::Object, engine::CameraTransform, engine::KeyboardKey, engine::KeyAction, engine::ModifierKey,
+    engine::DEFAULT_FOV;
+using std::shared_ptr, std::initializer_list, engine::Window, std::string_view, std::vector, std::shared_ptr;
 
 class ExampleWindow : public Window
 {
@@ -42,9 +42,11 @@ class ExampleWindow : public Window
 
     ExampleWindow(string_view title, int width, int height)
         : Window(title, width, height, "Runtime", {0, 1, 0})
-        , hint_box(camera, fov, show_demo_window, cube_mutator, camera_mouse)
         , cube_mutator(objects)
+        , runtime_info()
     {
+        hint_box = HintBox(camera, fov, show_demo_window, cube_mutator, runtime_info, camera_mouse);
+
         auto &rb = get_render_backend();
 
         cube         = shared_ptr<Cube>(new Cube(rb));
@@ -75,11 +77,10 @@ class ExampleWindow : public Window
             if (action == KeyAction::Press)
                 capture_mouse(camera_mouse = !camera_mouse);
             break;
-#ifndef NDEBUG
         case F1:
-            ImGui::DebugStartItemPicker();
+            if (action == KeyAction::Press)
+                runtime_info.visible(!runtime_info.visible());
             break;
-#endif
         case F2:
             if (action == KeyAction::Press)
                 cube_mutator.visible(!cube_mutator.visible());
@@ -88,6 +89,11 @@ class ExampleWindow : public Window
             if (action == KeyAction::Press)
                 show_demo_window = !show_demo_window;
             break;
+#ifndef NDEBUG
+        case F4:
+            ImGui::DebugStartItemPicker();
+            break;
+#endif
         case R:
             if (action == KeyAction::Press) {
                 camera.location = {2.0, 2.0, 2.0};
@@ -136,6 +142,9 @@ class ExampleWindow : public Window
     {
         if (camera_mouse)
             ImGui::BeginDisabled();
+
+        if (runtime_info)
+            runtime_info.draw();
 
         if (cube_mutator)
             cube_mutator.draw();
@@ -186,6 +195,7 @@ class ExampleWindow : public Window
 
     HintBox       hint_box;
     ObjectMutator cube_mutator;
+    RuntimeInfo   runtime_info;
 };
 
 static void set_spdlog_global_settings()
