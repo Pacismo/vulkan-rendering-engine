@@ -5,4 +5,4 @@ edition = "2021"
 
 [dependencies]
 clap = { version = "4.5.17", features = ["derive"] }
-shaderc = "0.8.3"
+shaderc = "0.10.1"
