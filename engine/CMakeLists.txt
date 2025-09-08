@@ -51,12 +51,12 @@ target_include_directories(engine PUBLIC "include" PRIVATE "${CMAKE_CURRENT_BINA
 target_link_libraries(engine PUBLIC Vulkan::Vulkan GPUOpen::VulkanMemoryAllocator glfw spdlog::spdlog fmt::fmt glm::glm imgui::imgui)
 
 target_compile_definitions(engine
-PRIVATE
+PUBLIC
     ENGINE_NAME="${GRT_ENGINE_NAME}"
     ENGINE_VERSION_MAJOR=${GRT_VERSION_MAJOR}
     ENGINE_VERSION_MINOR=${GRT_VERSION_MINOR}
     ENGINE_VERSION_PATCH=${GRT_VERSION_PATCH}
-PUBLIC
+
     VULKAN_HPP_NO_STRUCT_CONSTRUCTORS=1
     VMA_VULKAN_VERSION=1003000
 )
