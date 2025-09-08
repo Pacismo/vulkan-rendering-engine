@@ -1,7 +1,8 @@
-set(RUNTIME_SOURCES 
-	"main.cpp" 
-	"HintBox.hpp"       "HintBox.cpp" 
+set(RUNTIME_SOURCES
+	                    "main.cpp"
+	"HintBox.hpp"       "HintBox.cpp"
 	"ObjectMutator.hpp" "ObjectMutator.cpp"
+	"RuntimeInfo.hpp"   "RuntimeInfo.cpp"
 	"Cube.hpp"          "Cube.cpp"
 )
 
