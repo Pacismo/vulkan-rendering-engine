@@ -84,7 +84,7 @@ fn main() -> Result<()> {
         .to_string();
     let fdata = read_to_string(input)?;
 
-    let compiler = Compiler::new().ok_or("Failed to get access to the compiler")?;
+    let compiler = Compiler::new().or(Err("Failed to get access to the compiler"))?;
 
     let artifact = if output_mode.is_binary() {
         compiler.compile_into_spirv(&fdata, kind.to_shaderc(), &fname, &entrypoint, None)?
