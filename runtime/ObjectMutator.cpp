@@ -1,5 +1,4 @@
 #include "ObjectMutator.hpp"
-#include "Cube.hpp"
 #include <fmt/format.h>
 #include <imgui_stdlib.h>
 #include <reflection/datastructure.hpp>
@@ -85,7 +84,7 @@ void field_mutator(Object *p_obj, const Field &field)
         else
             s = fmt::format("[{:0.3f}]", f[0]);
 
-        ImGui::Text(s.c_str());
+        ImGui::Text("%s", s.c_str());
         break;
     }
     case FieldTypeBits::String:
@@ -123,14 +122,14 @@ void ObjectMutator::populate(ImGuiViewport *viewport)
 
             if (ImGui::Selectable(obj_name.c_str(), m_index == i))
                 m_index = i;
-            ImGui::SetItemTooltip(obj_ptr.c_str());
+            ImGui::SetItemTooltip("%s", obj_ptr.c_str());
 
             if (m_index == i)
                 ImGui::SetItemDefaultFocus();
         }
         ImGui::EndCombo();
     }
-    ImGui::SetItemTooltip(obj_ptr.c_str());
+    ImGui::SetItemTooltip("%s", obj_ptr.c_str());
 
     auto ds = m_objects->at(m_index)->get_rep();
     while (ds) {
